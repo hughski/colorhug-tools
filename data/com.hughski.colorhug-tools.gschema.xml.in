@@ -1,0 +1,24 @@
+<schemalist>
+  <schema id="com.hughski.colorhug-tools" path="/com/hughski/colorhug-tools/">
+    <key name="local-calibration-uri" type="s">
+      <default>''</default>
+      <_summary>The location of where the calibration files should be stored</_summary>
+      <_description>The location of where the calibration files should be stored.</_description>
+    </key>
+    <key name="local-firmware-uri" type="s">
+      <default>''</default>
+      <_summary>The location of where the local firmware files can be found</_summary>
+      <_description>The location of where the firmware files can be found.</_description>
+    </key>
+    <key name="local-spectral-reference" type="s">
+      <default>''</default>
+      <_summary>The local spectral reference file</_summary>
+      <_description>The default spectral reference, typically a ti3 file.</_description>
+    </key>
+    <key name="local-patches-source" type="s">
+      <default>''</default>
+      <_summary>The local source reference file</_summary>
+      <_description>The default source reference, typically a ti1 file.</_description>
+    </key>
+  </schema>
+</schemalist>

@@ -1,0 +1,61 @@
+%define alphatag                #ALPHATAG#
+
+Summary:   Tools for the Hughski Colorimeter
+Name:      colorhug-tools
+Version:   #VERSION#
+Release:   0.#BUILD#%{?alphatag}%{?dist}
+License:   GPLv2+
+URL:       http://www.hughski.com/
+Source0:   http://people.freedesktop.org/~hughsient/releases/%{name}-%{version}.tar.xz
+
+BuildRequires: gettext
+BuildRequires: glib2-devel
+BuildRequires: gtk3-devel
+BuildRequires: intltool
+BuildRequires: libgusb-devel >= 0.1.2
+BuildRequires: colord-devel >= 0.1.15
+BuildRequires: lcms2-devel
+BuildRequires: libsoup-devel
+BuildRequires: libtool
+BuildRequires: docbook-utils
+BuildRequires: sqlite-devel
+
+%description
+The Hughski ColorHug colorimeter is a low cost open-source hardware
+sensor used to calibrate screens.
+
+This package includes the extra tools which are not required.
+
+%prep
+%setup -q
+
+%build
+%configure --disable-static
+
+make %{?_smp_mflags}
+
+%install
+make install DESTDIR=$RPM_BUILD_ROOT
+
+rm -f $RPM_BUILD_ROOT%{_libdir}/libcolorhug*.la
+
+%find_lang %{name}
+
+%post
+glib-compile-schemas %{_datadir}/glib-2.0/schemas &> /dev/null || :
+
+%postun
+glib-compile-schemas %{_datadir}/glib-2.0/schemas &> /dev/null || :
+
+%files -f %{name}.lang
+%defattr(-,root,root,-)
+%doc README AUTHORS NEWS COPYING
+%dir %{_datadir}/colorhug-tools
+%{_datadir}/colorhug-tools
+%{_bindir}/colorhug*
+%{_datadir}/applications/*.desktop
+%{_datadir}/glib-2.0/schemas/*.gschema.xml
+
+%changelog
+* #LONGDATE# Richard Hughes <richard@hughsie.com> #VERSION#-0.#BUILD##ALPHATAG#
+- Update from git

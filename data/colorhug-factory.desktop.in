@@ -1,0 +1,10 @@
+[Desktop Entry]
+_Name=ColorHug Factory Calibration
+_Comment=Factory calibrate the ColorHug device
+Icon=colorimeter-colorhug
+Exec=colorhug-factory
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;System;
+StartupNotify=true
+NoDisplay=false

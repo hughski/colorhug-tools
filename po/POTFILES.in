@@ -1,0 +1,5 @@
+[encoding: UTF-8]
+[type: gettext/glade]data/ch-factory.ui
+data/colorhug-factory.desktop.in
+data/com.hughski.colorhug-tools.gschema.xml.in
+src/ch-factory.c
