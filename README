@@ -1,0 +1,7 @@
+              ColorHug
+
+The Hughski ColorHug Colorimeter is a low cost open-source hardware
+sensor used to calibrate screens.
+
+This package includes the extra tools which allows someone to distribute
+the hardware in an efficient way.
