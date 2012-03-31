@@ -9,7 +9,8 @@ INCLUDES =						\
 	-DLOCALEDIR=\""$(localedir)"\"
 
 bin_PROGRAMS =						\
-	colorhug-factory
+	colorhug-factory				\
+	colorhug-shipping
 
 colorhug_factory_SOURCES =				\
 	ch-sample-window.c				\
@@ -29,6 +30,28 @@ colorhug_factory_LDADD =				\
 	-lm
 
 colorhug_factory_CFLAGS =				\
+	$(WARNINGFLAGS_C)
+
+colorhug_shipping_SOURCES =				\
+	ch-cell-renderer-date.c				\
+	ch-cell-renderer-date.h				\
+	ch-cell-renderer-postage.c			\
+	ch-cell-renderer-postage.h			\
+	ch-cell-renderer-uint32.c			\
+	ch-cell-renderer-uint32.h			\
+	ch-shipping-common.c				\
+	ch-shipping-common.h				\
+	ch-database.c					\
+	ch-database.h					\
+	ch-shipping.c
+
+colorhug_shipping_LDADD =				\
+	$(GTK_LIBS)					\
+	$(SQLITE_LIBS)					\
+	$(COLORHUG_LIBS)				\
+	-lm
+
+colorhug_shipping_CFLAGS =				\
 	$(WARNINGFLAGS_C)
 
 -include $(top_srcdir)/git.mk

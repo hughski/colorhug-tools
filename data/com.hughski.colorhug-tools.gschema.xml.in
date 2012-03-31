@@ -20,5 +20,25 @@
       <_summary>The local source reference file</_summary>
       <_description>The default source reference, typically a ti1 file.</_description>
     </key>
+    <key name="invoice-documents-uri" type="s">
+      <default>''</default>
+      <_summary>The location of where the invoices can be found</_summary>
+      <_description>The location of where the invoice templates can be found.</_description>
+    </key>
+    <key name="labels-template" type="s">
+      <default>''</default>
+      <_summary>The label template</_summary>
+      <_description>The label template.</_description>
+    </key>
+    <key name="labels-data" type="s">
+      <default>''</default>
+      <_summary>The label data</_summary>
+      <_description>The label data in CSV format.</_description>
+    </key>
+    <key name="invoice-sender" type="s">
+      <default>''</default>
+      <_summary>The email address of the invoice sender</_summary>
+      <_description>The email address of the invoice sender.</_description>
+    </key>
   </schema>
 </schemalist>

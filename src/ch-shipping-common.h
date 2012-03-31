@@ -38,7 +38,11 @@ typedef enum {
 } ChShippingPostage;
 
 const gchar	*ch_shipping_postage_to_string	(ChShippingPostage postage);
-
+gboolean	 ch_shipping_send_email		(const gchar	*sender,
+						 const gchar	*recipient,
+						 const gchar	*subject,
+						 const gchar	*body,
+						 GError		**error);
 G_END_DECLS
 
 #endif /* CH_SHIPPING_COMMON_H */

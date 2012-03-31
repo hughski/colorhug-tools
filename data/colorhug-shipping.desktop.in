@@ -1,0 +1,10 @@
+[Desktop Entry]
+_Name=ColorHug Shipping
+_Comment=Shipping manager for ColorHug
+Icon=colorimeter-colorhug
+Exec=colorhug-shipping
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;System;
+StartupNotify=true
+NoDisplay=false

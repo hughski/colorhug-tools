@@ -1,7 +1,8 @@
 @INTLTOOL_DESKTOP_RULE@
 desktopdir = $(datadir)/applications
 desktop_in_files =					\
-	colorhug-factory.desktop.in
+	colorhug-factory.desktop.in			\
+	colorhug-shipping.desktop.in
 desktop_DATA = $(desktop_in_files:.desktop.in=.desktop)
 
 @GSETTINGS_RULES@
@@ -10,7 +11,8 @@ gsettings_schemas_in_files = com.hughski.colorhug-tools.gschema.xml.in
 gsettings_SCHEMAS = $(gsettings_schemas_in_files:.gschema.xml.in=.gschema.xml)
 
 pkgdata_DATA =						\
-	ch-factory.ui
+	ch-factory.ui					\
+	ch-shipping.ui
 
 EXTRA_DIST =						\
 	$(gsettings_schemas_in_files)			\
@@ -22,6 +24,7 @@ clean-local :
 
 DISTCLEANFILES =					\
 	com.hughski.colorhug-tools.gschema.xml		\
-	colorhug-factory.desktop
+	colorhug-factory.desktop			\
+	colorhug-shipping.desktop
 
 -include $(top_srcdir)/git.mk
