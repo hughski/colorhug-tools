@@ -1213,9 +1213,9 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	devices = ch_factory_get_active_devices (priv);
 
 	/* prepare for calibration */
-	rgb_tmp.R = 0.0f;
-	rgb_tmp.G = 0.0f;
-	rgb_tmp.B = 0.0f;
+	rgb_tmp.R = 0.00005f;
+	rgb_tmp.G = 0.00005f;
+	rgb_tmp.B = 0.00005f;
 	cd_mat33_set_identity (&calibration);
 	calibration_map[0] = 0;
 	calibration_map[1] = 0;
