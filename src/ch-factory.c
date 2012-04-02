@@ -435,13 +435,16 @@ ch_factory_flash_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	devices = ch_factory_get_active_devices (priv);
 	for (i = 0; i < devices->len; i++) {
 		device = g_ptr_array_index (devices, i);
+		ch_device_queue_set_flash_success (priv->device_queue,
+						   device,
+						   0);
 		ch_device_queue_write_firmware (priv->device_queue,
 						device,
 						(const guint8 *) data,
 						len);
 	}
 	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
 				       NULL,
 				       &error);
 	if (!ret) {
@@ -460,7 +463,7 @@ ch_factory_flash_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 						 len);
 	}
 	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
 				       NULL,
 				       &error);
 	if (!ret) {
@@ -1347,11 +1350,12 @@ ch_factory_boot_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		ch_factory_set_device_state (priv,
 					     device,
 					     CH_DEVICE_ICON_BUSY);
+		ch_device_queue_reset (priv->device_queue, device);
 	}
 
 	/* process queue */
 	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_CONTINUE_ERRORS,
 				       NULL,
 				       &error);
 	if (!ret) {
