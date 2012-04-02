@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <lcms2.h>
 #include <colorhug.h>
+#include <canberra-gtk.h>
 
 #include "ch-flash-md.h"
 #include "ch-sample-window.h"
@@ -1317,6 +1318,12 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* save files */
 	ch_factory_measure_save (priv, measure);
+
+	/* play sound */
+	ca_context_play (ca_gtk_context_get (), 0,
+			 CA_PROP_EVENT_ID, "alarm-clock-elapsed",
+			 CA_PROP_APPLICATION_NAME, _("ColorHug Factory"),
+			 CA_PROP_EVENT_DESCRIPTION, _("Calibration Completed"), NULL);
 out:
 	g_free (local_patches_source);
 	if (devices != NULL)

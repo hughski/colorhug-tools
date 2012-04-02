@@ -3,6 +3,7 @@ INCLUDES =						\
 	$(COLORHUG_CFLAGS)				\
 	$(LCMS_CFLAGS)					\
 	$(SQLITE_CFLAGS)				\
+	$(CANBERRA_CFLAGS)				\
 	-DG_LOG_DOMAIN=\"Ch\"				\
 	-DG_USB_API_IS_SUBJECT_TO_CHANGE		\
 	-DCH_DATA=\"$(pkgdatadir)\"			\
@@ -27,6 +28,7 @@ colorhug_factory_LDADD =				\
 	$(LCMS_LIBS)					\
 	$(COLORHUG_LIBS)				\
 	$(SQLITE_LIBS)					\
+	$(CANBERRA_LIBS)				\
 	-lm
 
 colorhug_factory_CFLAGS =				\
@@ -49,6 +51,7 @@ colorhug_shipping_LDADD =				\
 	$(GTK_LIBS)					\
 	$(SQLITE_LIBS)					\
 	$(COLORHUG_LIBS)				\
+	$(CANBERRA_LIBS)				\
 	-lm
 
 colorhug_shipping_CFLAGS =				\

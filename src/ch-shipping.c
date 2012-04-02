@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <lcms2.h>
 #include <colorhug.h>
+#include <canberra-gtk.h>
 
 #include "ch-cell-renderer-date.h"
 #include "ch-cell-renderer-postage.h"
@@ -810,6 +811,12 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* refresh status */
 	ch_shipping_refresh_status (priv);
+
+	/* play sound */
+	ca_context_play (ca_gtk_context_get (), 0,
+			 CA_PROP_EVENT_ID, "alarm-clock-elapsed",
+			 CA_PROP_APPLICATION_NAME, _("ColorHug Factory"),
+			 CA_PROP_EVENT_DESCRIPTION, _("Email sending completed"), NULL);
 
 	/* clear text box and close window */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_invite"));
