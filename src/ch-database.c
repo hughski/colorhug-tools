@@ -416,7 +416,7 @@ ch_database_device_find_oldest (ChDatabase *database,
 	/* find */
 	statement = g_strdup_printf ("SELECT device_id "
 				     "FROM devices WHERE state = '%i' "
-				     "ORDER BY device_id DESC LIMIT 1", state);
+				     "ORDER BY device_id ASC LIMIT 1", state);
 	rc = sqlite3_exec (priv->db,
 			   statement,
 			   ch_database_device_find_oldest_cb,
