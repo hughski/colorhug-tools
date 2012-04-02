@@ -1183,7 +1183,9 @@ ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, 
 			}
 		}
 
-		if (g_str_has_prefix (value, "Send-to address") || g_str_has_prefix (value, "Shipping address")) {
+		if (g_str_has_prefix (value, "Send-to address") ||
+		    g_str_has_prefix (value, "Postal address") ||
+		    g_str_has_prefix (value, "Shipping address")) {
 			is_address = TRUE;
 			continue;
 		}
