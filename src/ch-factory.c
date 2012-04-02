@@ -760,6 +760,7 @@ ch_factory_measure (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
 	guint i;
 	guint j;
 	GUsbDevice *device;
+	GtkWidget *widget;
 
 	/* setup the measure window */
 //	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1180, 1850);
@@ -769,6 +770,10 @@ ch_factory_measure (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
 	gtk_window_stick (priv->sample_window);
 	gtk_window_present (priv->sample_window);
 	gtk_window_move (priv->sample_window, 10, 10);
+
+	/* update global percentage */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
+	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), 0.0f);
 
 	measure->loop = g_main_loop_new (NULL, FALSE);
 
@@ -780,8 +785,13 @@ ch_factory_measure (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
 		ch_sample_window_set_fraction (CH_SAMPLE_WINDOW (priv->sample_window),
 						 (gdouble) j / (gdouble) measure->samples_ti1->len);
 
+		/* update global percentage */
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
+		gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget),
+					       (gdouble) j / (gdouble) measure->samples_ti1->len);
+
 		/* this has to be long enough for the screen to refresh */
-		ch_factory_loop_sleep (100);
+		ch_factory_loop_sleep (200);
 
 		/* do this async */
 		for (i = 0; i < measure->devices->len; i++) {
@@ -1513,6 +1523,7 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	GtkWidget *main_window;
 	GtkWidget *widget;
 	gchar *filename = NULL;
+	GtkStyleContext *context;
 
 	/* get UI */
 	priv->builder = gtk_builder_new ();
@@ -1559,6 +1570,22 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_check_leds"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_factory_check_leds_button_cb), priv);
+
+	/* update global percentage */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
+	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), 0.0f);
+
+	/* make devices toolbar sexy */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder,
+						     "scrolledwindow_devices"));
+	context = gtk_widget_get_style_context (widget);
+	gtk_style_context_set_junction_sides (context, GTK_JUNCTION_BOTTOM);
+
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder,
+						     "toolbar_devices"));
+	context = gtk_widget_get_style_context (widget);
+	gtk_style_context_add_class (context, GTK_STYLE_CLASS_INLINE_TOOLBAR);
+	gtk_style_context_set_junction_sides (context, GTK_JUNCTION_TOP);
 
 	/* is the colorhug already plugged in? */
 	g_usb_device_list_coldplug (priv->device_list);
@@ -1631,7 +1658,7 @@ ch_factory_device_queue_progress_changed_cb (ChDeviceQueue	*device_queue,
 					     ChFactoryPrivate	*priv)
 {
 	GtkWidget *widget;
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_progress"));
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_queue"));
 	g_debug ("queue complete %i%%", percentage);
 	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), (gdouble) percentage / 100.0f);
 }
