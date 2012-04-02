@@ -405,7 +405,7 @@ ch_shipping_print_labels_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	labels_template = g_settings_get_string (priv->settings, "labels-template");
 	cmd = g_strdup_printf ("glabels-3-batch --output=/tmp/colorhug.pdf '%s'", labels_template);
 	g_debug ("Running: %s", cmd);
-	ret = g_spawn_command_line_sync ("",
+	ret = g_spawn_command_line_sync (cmd,
 					 NULL,
 					 NULL,
 					 NULL,
@@ -426,6 +426,9 @@ ch_shipping_print_labels_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* clear the pending queue of things to print */
 	g_string_set_size (priv->output_csv, 0);
+
+	/* refresh status */
+	ch_shipping_refresh_status (priv);
 out:
 	g_free (cmd);
 	g_free (labels_template);
