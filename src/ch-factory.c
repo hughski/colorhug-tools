@@ -1049,6 +1049,11 @@ ch_factory_measure_save (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
 		ret = ch_factory_save_to_file (filename_ti3,
 					       measure->samples_ti1,
 					       results_tmp);
+		if (!ret) {
+			ch_factory_device_is_shit (measure, device, "save");
+			g_warning ("failed to save to file: %s", "save");
+			goto out;
+		}
 
 		/* create ccmx file */
 		argv = g_ptr_array_new_with_free_func (g_free);

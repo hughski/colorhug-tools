@@ -167,7 +167,6 @@ ch_database_add_device (ChDatabase *database, GError **error)
 				     CH_DATABASE_STATE_INIT);
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
 	if (rc != SQLITE_OK) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "failed to add entry: %s",
 			     sqlite3_errmsg (priv->db));
@@ -423,14 +422,12 @@ ch_database_device_find_oldest (ChDatabase *database,
 			   &id,
 			   &error_msg);
 	if (rc != SQLITE_OK) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "failed to find entry: %s",
 			     sqlite3_errmsg (priv->db));
 		goto out;
 	}
 	if (id == G_MAXUINT32) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "No devices in state %s",
 			     ch_database_state_to_string (state));
@@ -482,14 +479,12 @@ ch_database_order_get_device_id (ChDatabase *database,
 			   &id,
 			   &error_msg);
 	if (rc != SQLITE_OK) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "failed to find entry: %s",
 			     sqlite3_errmsg (priv->db));
 		goto out;
 	}
 	if (id == G_MAXUINT32) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "No devices for order %i", order_id);
 		goto out;
@@ -556,7 +551,6 @@ ch_database_get_all_orders (ChDatabase *database,
 			   orders_tmp,
 			   &error_msg);
 	if (rc != SQLITE_OK) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "failed to find entry: %s",
 			     sqlite3_errmsg (priv->db));
@@ -610,7 +604,6 @@ ch_database_add_order (ChDatabase *database,
 				     postage);
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
 	if (rc != SQLITE_OK) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "failed to add entry: %s",
 			     sqlite3_errmsg (priv->db));
@@ -666,7 +659,6 @@ ch_database_get_queue (ChDatabase *database,
 			   array_tmp,
 			   &error_msg);
 	if (rc != SQLITE_OK) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "failed to find entry: %s",
 			     sqlite3_errmsg (priv->db));
@@ -709,7 +701,6 @@ ch_database_queue_add (ChDatabase *database,
 				     g_get_real_time ());
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
 	if (rc != SQLITE_OK) {
-		ret = FALSE;
 		g_set_error (error, 1, 0,
 			     "failed to add entry: %s",
 			     sqlite3_errmsg (priv->db));
