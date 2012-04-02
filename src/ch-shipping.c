@@ -1124,6 +1124,7 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 	gtk_tree_view_column_add_attribute (column, renderer, "value", COLUMN_DEVICE_ID);
 	gtk_tree_view_column_set_title (column, "Device Serial");
 	gtk_tree_view_append_column (treeview, column);
+	gtk_tree_view_column_set_sort_column_id (column, COLUMN_DEVICE_ID);
 }
 
 /**
@@ -1333,6 +1334,7 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	GtkWidget *main_window;
 	GtkWidget *widget;
 	GtkStyleContext *context;
+	GtkTreeSortable *sortable;
 
 	/* get UI */
 	priv->builder = gtk_builder_new ();
@@ -1362,6 +1364,11 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 
 	/* setup treeview */
 	ch_shipping_treeview_add_columns (priv);
+
+	/* sorted */
+	sortable = GTK_TREE_SORTABLE (gtk_builder_get_object (priv->builder, "liststore_orders"));
+	gtk_tree_sortable_set_sort_column_id (sortable,
+					      COLUMN_DEVICE_ID, GTK_SORT_DESCENDING);
 
 	/* buttons */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_close"));
