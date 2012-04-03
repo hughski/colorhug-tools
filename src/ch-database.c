@@ -125,6 +125,7 @@ ch_database_load (ChDatabase *database, GError **error)
 			    "address STRING,"
 			    "email STRING,"
 			    "tracking_number STRING,"
+			    "comment STRING,"
 			    "postage INTEGER,"
 			    "sent_date INTEGER);";
 		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
@@ -259,6 +260,51 @@ ch_database_order_set_tracking (ChDatabase *database,
 	statement = sqlite3_mprintf ("UPDATE orders SET tracking_number = '%q', sent_date = '%" G_GINT64_FORMAT "' WHERE order_id = '%i'",
 				     tracking,
 				     g_get_real_time (),
+				     order_id);
+	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
+	if (rc != SQLITE_OK) {
+		ret = FALSE;
+		g_set_error (error, 1, 0,
+			     "failed to update order: %s",
+			     sqlite3_errmsg (priv->db));
+		goto out;
+	}
+out:
+	sqlite3_free (statement);
+	return ret;
+}
+
+/**
+ * ch_database_order_set_comment:
+ * @database: a valid #ChDatabase instance
+ * @id: the device serial number
+ * @comment: the #ChDatabaseState
+ * @error: A #GError or %NULL
+ *
+ * Changes the state on a device
+ *
+ * Return value: %TRUE if the new state was set
+ **/
+gboolean
+ch_database_order_set_comment (ChDatabase *database,
+			       guint32 order_id,
+			       const gchar *comment,
+			       GError **error)
+{
+	ChDatabasePrivate *priv = database->priv;
+	gboolean ret;
+	gchar *error_msg = NULL;
+	gchar *statement = NULL;
+	gint rc;
+
+	/* ensure db is loaded */
+	ret = ch_database_load (database, error);
+	if (!ret)
+		goto out;
+
+	/* set state */
+	statement = sqlite3_mprintf ("UPDATE orders SET comment = '%q' WHERE order_id = '%i'",
+				     comment,
 				     order_id);
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
 	if (rc != SQLITE_OK) {
@@ -498,6 +544,60 @@ out:
 }
 
 /**
+ * ch_database_order_get_comment_cb:
+ **/
+static gint
+ch_database_order_get_comment_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	gchar **comment = (gchar **) data;
+	*comment = g_strdup (argv[0]);
+	return 0;
+}
+
+/**
+ * ch_database_order_get_comment:
+ **/
+gchar *
+ch_database_order_get_comment (ChDatabase *database,
+				guint32 order_id,
+				GError **error)
+{
+	ChDatabasePrivate *priv = database->priv;
+	gboolean ret;
+	gchar *error_msg = NULL;
+	gchar *statement = NULL;
+	gint rc;
+	gchar *comment = NULL;
+
+	/* ensure db is loaded */
+	ret = ch_database_load (database, error);
+	if (!ret)
+		goto out;
+
+	/* find */
+	statement = g_strdup_printf ("SELECT comment "
+				     "FROM orders WHERE order_id = '%i';", order_id);
+	rc = sqlite3_exec (priv->db,
+			   statement,
+			   ch_database_order_get_comment_cb,
+			   &comment,
+			   &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0,
+			     "failed to find entry: %s",
+			     sqlite3_errmsg (priv->db));
+		goto out;
+	}
+
+	/* don't return NULL for success */
+	if (comment == NULL)
+		comment = g_strdup ("");
+out:
+	g_free (statement);
+	return comment;
+}
+
+/**
  * ch_database_get_all_orders_cb:
  **/
 static gint
@@ -513,6 +613,7 @@ ch_database_get_all_orders_cb (void *data, gint argc, gchar **argv, gchar **col_
 	order->postage = atoi (argv[4]);
 	order->tracking_number = g_strdup (argv[5]);
 	order->sent_date = g_ascii_strtoll (argv[6], NULL, 10);
+	order->comment = g_strdup (argv[7]);
 	g_ptr_array_add (array, order);
 	return 0;
 }
@@ -545,7 +646,7 @@ ch_database_get_all_orders (ChDatabase *database,
 
 	/* find */
 	orders_tmp = g_ptr_array_new ();
-	statement = g_strdup ("SELECT order_id, name, address, email, postage, tracking_number, sent_date "
+	statement = g_strdup ("SELECT order_id, name, address, email, postage, tracking_number, sent_date, comment "
 			      "FROM orders "
 			      "ORDER BY order_id DESC");
 	rc = sqlite3_exec (priv->db,

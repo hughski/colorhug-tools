@@ -57,6 +57,7 @@ enum {
 	COLUMN_SHIPPED,
 	COLUMN_POSTAGE,
 	COLUMN_DEVICE_ID,
+	COLUMN_COMMENT,
 	COLUMN_LAST
 };
 
@@ -250,6 +251,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 				    COLUMN_TRACKING, order->tracking_number,
 				    COLUMN_SHIPPED, order->sent_date,
 				    COLUMN_POSTAGE, order->postage,
+				    COLUMN_COMMENT, order->comment,
 				    COLUMN_DEVICE_ID, device_id,
 				    -1);
 	}
@@ -583,6 +585,57 @@ static void
 ch_shipping_shipped_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_shipped"));
+	gtk_widget_hide (widget);
+}
+
+
+/**
+ * ch_shipping_comment_button_cb:
+ **/
+static void
+ch_shipping_comment_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	gboolean ret;
+	gchar *comment = NULL;
+	GError *error = NULL;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeSelection *selection;
+	GtkTreeView *treeview;
+	guint32 order_id;
+
+	/* get the order id of the selected item */
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	selection = gtk_tree_view_get_selection (treeview);
+	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
+	if (!ret)
+		goto out;
+
+	/* set the text box to have the existing comment */
+	gtk_tree_model_get (model, &iter,
+			    COLUMN_ORDER_ID, &order_id,
+			    -1);
+	comment = ch_database_order_get_comment (priv->database, order_id, &error);
+	if (comment == NULL) {
+		ch_shipping_error_dialog (priv, "Failed to get comment form order", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* show UI */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_comment"));
+	gtk_widget_show (widget);
+out:
+	g_free (comment);
+}
+
+/**
+ * ch_shipping_comment_cancel_button_cb:
+ **/
+static void
+ch_shipping_comment_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_comment"));
 	gtk_widget_hide (widget);
 }
 
@@ -1067,6 +1120,54 @@ out:
 }
 
 /**
+ * ch_shipping_comment_edit_button_cb:
+ **/
+static void
+ch_shipping_comment_edit_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	const gchar *comment = NULL;
+	gboolean ret;
+	GError *error = NULL;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeSelection *selection;
+	GtkTreeView *treeview;
+	guint32 order_id;
+
+	/* get the order id of the selected item */
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	selection = gtk_tree_view_get_selection (treeview);
+	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
+	if (!ret)
+		goto out;
+	gtk_tree_model_get (model, &iter,
+			    COLUMN_ORDER_ID, &order_id,
+			    -1);
+
+	/* get tracking number */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_comment_text"));
+	comment = gtk_entry_get_text (GTK_ENTRY (widget));
+
+	/* save to the database */
+	ret = ch_database_order_set_comment (priv->database,
+					     order_id,
+					     comment,
+					     &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to add comment to order", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* refresh state */
+	ch_shipping_refresh_orders (priv);
+out:
+	/* buttons */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_comment"));
+	gtk_widget_hide (widget);
+}
+
+/**
  * ch_shipping_row_activated_cb:
  **/
 static void
@@ -1159,9 +1260,17 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 	renderer = ch_cell_renderer_uint32_new ();
 	gtk_tree_view_column_pack_start (column, renderer, FALSE);
 	gtk_tree_view_column_add_attribute (column, renderer, "value", COLUMN_DEVICE_ID);
-	gtk_tree_view_column_set_title (column, "Device Serial");
+	gtk_tree_view_column_set_title (column, "Device");
 	gtk_tree_view_append_column (treeview, column);
 	gtk_tree_view_column_set_sort_column_id (column, COLUMN_DEVICE_ID);
+
+	/* column for comment */
+	column = gtk_tree_view_column_new ();
+	renderer = gtk_cell_renderer_text_new ();
+	gtk_tree_view_column_pack_start (column, renderer, FALSE);
+	gtk_tree_view_column_add_attribute (column, renderer, "markup", COLUMN_COMMENT);
+	gtk_tree_view_column_set_title (column, "Comments");
+	gtk_tree_view_append_column (treeview, column);
 }
 
 /**
@@ -1431,6 +1540,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_shipped"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_shipped_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_comment"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_comment_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_invite"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_invite_button_cb), priv);
@@ -1446,9 +1558,15 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_cancel"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_shipped_cancel_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_cancel"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_comment_cancel_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_email"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_shipped_email_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_edit"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_comment_edit_button_cb), priv);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_invite_cancel"));
 	g_signal_connect (widget, "clicked",

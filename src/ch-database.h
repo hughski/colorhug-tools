@@ -62,6 +62,7 @@ typedef struct {
 	gchar		*tracking_number;
 	gint64		 sent_date;
 	guint32		 order_id;
+	gchar		*comment;
 } ChDatabaseOrder;
 
 GType		 ch_database_get_type		(void);
@@ -82,6 +83,13 @@ gboolean	 ch_database_device_set_state	(ChDatabase	*database,
 gboolean	 ch_database_order_set_tracking	(ChDatabase	*database,
 						 guint32	 order_id,
 						 const gchar	*tracking,
+						 GError		**error);
+gboolean	 ch_database_order_set_comment	(ChDatabase	*database,
+						 guint32	 order_id,
+						 const gchar	*comment,
+						 GError		**error);
+gchar		*ch_database_order_get_comment	(ChDatabase	*database,
+						 guint32	 order_id,
 						 GError		**error);
 guint32		 ch_database_device_find_oldest	(ChDatabase	*database,
 						 ChDatabaseState state,
