@@ -48,7 +48,7 @@ typedef struct {
 } ChFactoryPrivate;
 
 enum {
-	COLUMN_ID,
+	COLUMN_ORDER_ID,
 	COLUMN_NAME,
 	COLUMN_ADDRESS,
 	COLUMN_EMAIL,
@@ -124,7 +124,7 @@ ch_shipping_find_by_id (GtkTreeModel *model,
 	ret = gtk_tree_model_get_iter_first (model, &iter);
 	while (ret) {
 		gtk_tree_model_get (model, &iter,
-				    COLUMN_ID, &order_id_tmp,
+				    COLUMN_ORDER_ID, &order_id_tmp,
 				    -1);
 		if (order_id_tmp == order_id) {
 			*iter_found = iter;
@@ -244,7 +244,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 
 		gtk_list_store_set (list_store, &iter,
 				    COLUMN_FILENAME, icon,
-				    COLUMN_ID, order->order_id,
+				    COLUMN_ORDER_ID, order->order_id,
 				    COLUMN_NAME, order->name,
 				    COLUMN_EMAIL, order->email,
 				    COLUMN_ADDRESS, order->address,
@@ -287,7 +287,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	if (!ret)
 		goto out;
 	gtk_tree_model_get (model, &iter,
-			    COLUMN_ID, &order_id,
+			    COLUMN_ORDER_ID, &order_id,
 			    COLUMN_NAME, &name,
 			    COLUMN_ADDRESS, &address,
 			    COLUMN_POSTAGE, &postage,
@@ -1051,7 +1051,7 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	if (!ret)
 		goto out;
 	gtk_tree_model_get (model, &iter,
-			    COLUMN_ID, &order_id,
+			    COLUMN_ORDER_ID, &order_id,
 			    COLUMN_POSTAGE, &postage,
 			    COLUMN_EMAIL, &email,
 			    COLUMN_DEVICE_ID, &device_id,
@@ -1191,7 +1191,7 @@ ch_shipping_row_activated_cb (GtkTreeView *treeview,
 
 	/* get data */
 	gtk_tree_model_get (model, &iter,
-			    COLUMN_ID, &id,
+			    COLUMN_ORDER_ID, &id,
 			    -1);
 	if (id == G_MAXUINT32)
 		goto out;
@@ -1420,10 +1420,10 @@ out:
 }
 
 /**
- * ch_shipping_shipping_entry_changed_cb:
+ * ch_shipping_tracking_entry_changed_cb:
  **/
 static void
-ch_shipping_shipping_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, ChFactoryPrivate *priv)
+ch_shipping_tracking_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, ChFactoryPrivate *priv)
 {
 	const gchar *value;
 	gboolean ret = FALSE;
@@ -1613,7 +1613,7 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	/* don't allow to send without tracking number */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_shipped_tracking"));
 	g_signal_connect (widget, "notify::text",
-			  G_CALLBACK (ch_shipping_shipping_entry_changed_cb), priv);
+			  G_CALLBACK (ch_shipping_tracking_entry_changed_cb), priv);
 
 	/* disable buttons based on the order state */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "treeview_orders"));
