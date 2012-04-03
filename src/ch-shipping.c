@@ -663,6 +663,15 @@ ch_shipping_parse_email_list (const gchar *value)
 }
 
 /**
+ * ch_shipping_refresh_cb:
+ **/
+static void
+ch_shipping_refresh_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	ch_shipping_refresh_orders (priv);
+}
+
+/**
  * ch_shipping_queue_add_button_cb:
  **/
 static void
@@ -1585,6 +1594,10 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_queue_add"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_queue_add_button_cb), priv);
+
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_refresh"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_refresh_cb), priv);
 
 	/* don't allow to add without details */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_name"));
