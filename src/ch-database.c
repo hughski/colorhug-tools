@@ -82,7 +82,6 @@ ch_database_load (ChDatabase *database, GError **error)
 	const gchar *statement;
 	gboolean ret = TRUE;
 	gchar *error_msg = NULL;
-	GFile *file = NULL;
 	gint rc;
 
 	/* already open */
@@ -90,13 +89,6 @@ ch_database_load (ChDatabase *database, GError **error)
 		goto out;
 
 	/* open database */
-	file = g_file_new_for_path (database->priv->uri);
-	ret = g_file_query_exists (file, NULL);
-	if (!ret) {
-		ret = g_file_make_directory_with_parents (file, NULL, error);
-		if (!ret)
-			goto out;
-	}
 	g_debug ("trying to open database '%s'", database->priv->uri);
 	rc = sqlite3_open (database->priv->uri, &priv->db);
 	if (rc != SQLITE_OK) {
@@ -136,8 +128,6 @@ ch_database_load (ChDatabase *database, GError **error)
 		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
 	}
 out:
-	if (file != NULL)
-		g_object_unref (file);
 	return ret;
 }
 
