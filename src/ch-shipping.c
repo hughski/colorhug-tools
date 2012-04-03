@@ -1318,10 +1318,13 @@ ch_shipping_shipping_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec
 {
 	const gchar *value;
 	gboolean ret = FALSE;
+	guint len = 0;
 
 	/* set to defaults */
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
-	if (value[0] == '\0')
+	if (value != NULL)
+		len = strlen (value);
+	if (len != 3 && len != 13)
 		goto out;
 
 	/* woohoo */
