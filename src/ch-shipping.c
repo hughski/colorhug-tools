@@ -1647,6 +1647,17 @@ out:
 }
 
 /**
+ * ch_shipping_database_changed_cb:
+ **/
+static void
+ch_shipping_database_changed_cb (ChDatabase *database,
+				 ChFactoryPrivate *priv)
+{
+	/* just refresh the listview */
+	ch_shipping_refresh_orders (priv);
+}
+
+/**
  * ch_shipping_ignore_cb:
  **/
 static void
@@ -1700,6 +1711,8 @@ main (int argc, char **argv)
 	priv = g_new0 (ChFactoryPrivate, 1);
 	priv->loop = g_main_loop_new (NULL, FALSE);
 	priv->database = ch_database_new ();
+	g_signal_connect (priv->database, "changed",
+			  G_CALLBACK (ch_shipping_database_changed_cb), priv);
 	priv->settings = g_settings_new ("com.hughski.colorhug-tools");
 
 	/* set the database location */

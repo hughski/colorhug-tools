@@ -41,7 +41,15 @@ struct _ChDatabasePrivate
 {
 	sqlite3				*db;
 	gchar				*uri;
+	GFileMonitor			*file_monitor;
 };
+
+enum {
+	CH_DATABASE_CHANGED,
+	CH_DATABASE_LAST_SIGNAL
+};
+
+static guint signals [CH_DATABASE_LAST_SIGNAL] = { 0 };
 
 G_DEFINE_TYPE (ChDatabase, ch_database, G_TYPE_OBJECT)
 
@@ -73,6 +81,20 @@ ch_database_set_uri (ChDatabase *database, const gchar *uri)
 }
 
 /**
+ * ch_database_changed_cb:
+ **/
+static void
+ch_database_changed_cb (GFileMonitor *monitor,
+			GFile *file,
+			GFile *other_file,
+			GFileMonitorEvent event_type,
+			ChDatabase *database)
+{
+	g_debug ("database changed!");
+	g_signal_emit (database, signals [CH_DATABASE_CHANGED], 0);
+}
+
+/**
  * ch_database_load:
  **/
 static gboolean
@@ -82,6 +104,7 @@ ch_database_load (ChDatabase *database, GError **error)
 	const gchar *statement;
 	gboolean ret = TRUE;
 	gchar *error_msg = NULL;
+	GFile *file = NULL;
 	gint rc;
 
 	/* already open */
@@ -127,7 +150,22 @@ ch_database_load (ChDatabase *database, GError **error)
 			    "added INTEGER);";
 		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
 	}
+
+	/* monitor for changes */
+	file = g_file_new_for_path (database->priv->uri);
+	priv->file_monitor = g_file_monitor_file (file,
+						  G_FILE_MONITOR_NONE,
+						  NULL,
+						  error);
+	if (priv->file_monitor == NULL) {
+		ret = FALSE;
+		goto out;
+	}
+	g_signal_connect (priv->file_monitor, "changed",
+			  G_CALLBACK (ch_database_changed_cb), database);
 out:
+	if (file != NULL)
+		g_object_unref (file);
 	return ret;
 }
 
@@ -942,6 +980,14 @@ ch_database_class_init (ChDatabaseClass *klass)
 {
 	GObjectClass *object_class = G_OBJECT_CLASS (klass);
 	object_class->finalize = ch_database_finalize;
+
+	signals [CH_DATABASE_CHANGED] =
+		g_signal_new ("changed",
+			      G_TYPE_FROM_CLASS (object_class), G_SIGNAL_RUN_LAST,
+			      G_STRUCT_OFFSET (ChDatabaseClass, changed),
+			      NULL, NULL, g_cclosure_marshal_VOID__VOID,
+			      G_TYPE_NONE, 0);
+
 	g_type_class_add_private (klass, sizeof (ChDatabasePrivate));
 }
 
@@ -966,6 +1012,8 @@ ch_database_finalize (GObject *object)
 	g_free (priv->uri);
 	if (priv->db != NULL)
 		sqlite3_close (priv->db);
+	if (priv->file_monitor != NULL)
+		g_object_unref (priv->file_monitor);
 
 	G_OBJECT_CLASS (ch_database_parent_class)->finalize (object);
 }
