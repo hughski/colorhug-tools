@@ -844,6 +844,8 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GString *addr = g_string_new ("");
 	guint32 device_id;
 	guint32 order_id;
+	gchar *from = NULL;
+	GString *str = NULL;
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_paypal"));
 	name = gtk_entry_get_text (GTK_ENTRY (widget));
@@ -932,9 +934,37 @@ skip:
 		goto out;
 	}
 
+	/* write email */
+	str = g_string_new ("");
+	from = g_settings_get_string (priv->settings, "invoice-sender");
+	g_string_append_printf (str, "ColorHug order %i has been created and allocated device number %i\n",
+				order_id,
+				device_id);
+	g_string_append (str, "The invoice will be printed and the package will be sent today or tomorrow. We'll also let you know when we've put it in the post.\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "Thanks again for your support for this new and exciting project.\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "Richard Hughes\n");
+
+	/* actually send the email */
+	ret = ch_shipping_send_email (from,
+				      email,
+				      "Your ColorHug order has been received",
+				      str->str,
+				      &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to send email", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
 	/* refresh state */
 	ch_shipping_refresh_orders (priv);
 out:
+	if (str != NULL)
+		g_string_free (str, TRUE);
+	g_free (from);
+
 	/* buttons */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_order"));
 	gtk_widget_hide (widget);
