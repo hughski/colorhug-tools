@@ -1233,7 +1233,7 @@
   </object>
   <object class="GtkListStore" id="liststore_orders">
     <columns>
-      <!-- column-name id -->
+      <!-- column-name order_id -->
       <column type="guint"/>
       <!-- column-name name -->
       <column type="gchararray"/>
@@ -1253,6 +1253,8 @@
       <column type="guint"/>
       <!-- column-name comment -->
       <column type="gchararray"/>
+      <!-- column-name order_state -->
+      <column type="guint"/>
     </columns>
   </object>
 </interface>

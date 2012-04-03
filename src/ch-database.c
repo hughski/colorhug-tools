@@ -49,13 +49,13 @@ G_DEFINE_TYPE (ChDatabase, ch_database, G_TYPE_OBJECT)
  * ch_database_state_to_string:
  **/
 const gchar *
-ch_database_state_to_string (ChDatabaseState state)
+ch_database_state_to_string (ChDeviceState state)
 {
-	if (state == CH_DATABASE_STATE_INIT)
+	if (state == CH_DEVICE_STATE_INIT)
 		return "init";
-	if (state == CH_DATABASE_STATE_CALIBRATED)
+	if (state == CH_DEVICE_STATE_CALIBRATED)
 		return "calibrated";
-	if (state == CH_DATABASE_STATE_ALLOCATED)
+	if (state == CH_DEVICE_STATE_ALLOCATED)
 		return "allocated";
 	return NULL;
 }
@@ -126,6 +126,7 @@ ch_database_load (ChDatabase *database, GError **error)
 			    "email STRING,"
 			    "tracking_number STRING,"
 			    "comment STRING,"
+			    "state INTEGER,"
 			    "postage INTEGER,"
 			    "sent_date INTEGER);";
 		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
@@ -168,7 +169,7 @@ ch_database_add_device (ChDatabase *database, GError **error)
 	statement = g_strdup_printf ("INSERT INTO devices (calibrated_date, order_id, state) "
 				     "VALUES ('%" G_GINT64_FORMAT "', '', %i);",
 				     g_get_real_time (),
-				     CH_DATABASE_STATE_INIT);
+				     CH_DEVICE_STATE_INIT);
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0,
@@ -188,7 +189,7 @@ out:
  * ch_database_device_set_state:
  * @database: a valid #ChDatabase instance
  * @id: the device serial number
- * @state: the #ChDatabaseState
+ * @state: the #ChDeviceState
  * @error: A #GError or %NULL
  *
  * Changes the state on a device
@@ -198,7 +199,7 @@ out:
 gboolean
 ch_database_device_set_state (ChDatabase *database,
 			      guint32 id,
-			      ChDatabaseState state,
+			      ChDeviceState state,
 			      GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;
@@ -232,7 +233,7 @@ out:
  * ch_database_order_set_tracking:
  * @database: a valid #ChDatabase instance
  * @id: the device serial number
- * @state: the #ChDatabaseState
+ * @state: the #ChDeviceState
  * @error: A #GError or %NULL
  *
  * Changes the state on a device
@@ -278,7 +279,7 @@ out:
  * ch_database_order_set_comment:
  * @database: a valid #ChDatabase instance
  * @id: the device serial number
- * @comment: the #ChDatabaseState
+ * @comment: the #ChDeviceState
  * @error: A #GError or %NULL
  *
  * Changes the state on a device
@@ -320,10 +321,55 @@ out:
 }
 
 /**
+ * ch_database_order_set_state:
+ * @database: a valid #ChDatabase instance
+ * @id: the device serial number
+ * @comment: the #ChDeviceState
+ * @error: A #GError or %NULL
+ *
+ * Changes the state on an order.
+ *
+ * Return value: %TRUE if the new state was set
+ **/
+gboolean
+ch_database_order_set_state (ChDatabase *database,
+			     guint32 order_id,
+			     ChOrderState state,
+			     GError **error)
+{
+	ChDatabasePrivate *priv = database->priv;
+	gboolean ret;
+	gchar *error_msg = NULL;
+	gchar *statement = NULL;
+	gint rc;
+
+	/* ensure db is loaded */
+	ret = ch_database_load (database, error);
+	if (!ret)
+		goto out;
+
+	/* set state */
+	statement = sqlite3_mprintf ("UPDATE orders SET state = '%i' WHERE order_id = '%i'",
+				     state,
+				     order_id);
+	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
+	if (rc != SQLITE_OK) {
+		ret = FALSE;
+		g_set_error (error, 1, 0,
+			     "failed to update order: %s",
+			     sqlite3_errmsg (priv->db));
+		goto out;
+	}
+out:
+	sqlite3_free (statement);
+	return ret;
+}
+
+/**
  * ch_database_device_set_order_id:
  * @database: a valid #ChDatabase instance
  * @id: the device serial number
- * @state: the #ChDatabaseState
+ * @state: the #ChDeviceState
  * @error: A #GError or %NULL
  *
  * Changes the order-id on a device
@@ -377,7 +423,7 @@ ch_database_device_get_number_cb (void *data, gint argc, gchar **argv, gchar **c
 /**
  * ch_database_device_get_number:
  * @database: a valid #ChDatabase instance
- * @state: A #ChDatabaseState
+ * @state: A #ChDeviceState
  * @error: A #GError or %NULL
  *
  * Finds the oldest device of a known state
@@ -386,7 +432,7 @@ ch_database_device_get_number_cb (void *data, gint argc, gchar **argv, gchar **c
  **/
 guint
 ch_database_device_get_number (ChDatabase *database,
-			       ChDatabaseState state,
+			       ChDeviceState state,
 			       GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;
@@ -437,7 +483,7 @@ ch_database_device_find_oldest_cb (void *data, gint argc, gchar **argv, gchar **
 /**
  * ch_database_device_find_oldest:
  * @database: a valid #ChDatabase instance
- * @state: A #ChDatabaseState
+ * @state: A #ChDeviceState
  * @error: A #GError or %NULL
  *
  * Finds the oldest device of a known state
@@ -446,7 +492,7 @@ ch_database_device_find_oldest_cb (void *data, gint argc, gchar **argv, gchar **
  **/
 guint32
 ch_database_device_find_oldest (ChDatabase *database,
-				ChDatabaseState state,
+				ChDeviceState state,
 				GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;
@@ -614,6 +660,7 @@ ch_database_get_all_orders_cb (void *data, gint argc, gchar **argv, gchar **col_
 	order->tracking_number = g_strdup (argv[5]);
 	order->sent_date = g_ascii_strtoll (argv[6], NULL, 10);
 	order->comment = g_strdup (argv[7]);
+	order->state = argv[8] != NULL ? atoi (argv[8]) : 0;
 	g_ptr_array_add (array, order);
 	return 0;
 }
@@ -646,7 +693,9 @@ ch_database_get_all_orders (ChDatabase *database,
 
 	/* find */
 	orders_tmp = g_ptr_array_new ();
-	statement = g_strdup ("SELECT order_id, name, address, email, postage, tracking_number, sent_date, comment "
+	statement = g_strdup ("SELECT order_id, name, address, email, "
+			      "postage, tracking_number, sent_date, "
+			      "comment, state "
 			      "FROM orders "
 			      "ORDER BY order_id DESC");
 	rc = sqlite3_exec (priv->db,

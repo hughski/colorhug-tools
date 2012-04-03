@@ -37,6 +37,20 @@ typedef enum {
 	CH_SHIPPING_POSTAGE_LAST
 } ChShippingPostage;
 
+typedef enum {
+	CH_DEVICE_STATE_INIT,
+	CH_DEVICE_STATE_CALIBRATED,
+	CH_DEVICE_STATE_ALLOCATED,
+	CH_DEVICE_STATE_LAST
+} ChDeviceState;
+
+typedef enum {
+	CH_ORDER_STATE_NEW,
+	CH_ORDER_STATE_PRINTED,
+	CH_ORDER_STATE_SENT,
+	CH_ORDER_STATE_LAST
+} ChOrderState;
+
 const gchar	*ch_shipping_postage_to_string	(ChShippingPostage postage);
 gboolean	 ch_shipping_send_email		(const gchar	*sender,
 						 const gchar	*recipient,

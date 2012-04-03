@@ -34,6 +34,7 @@
 #include "ch-cell-renderer-date.h"
 #include "ch-cell-renderer-postage.h"
 #include "ch-cell-renderer-uint32.h"
+#include "ch-cell-renderer-order-status.h"
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
@@ -58,12 +59,9 @@ enum {
 	COLUMN_POSTAGE,
 	COLUMN_DEVICE_ID,
 	COLUMN_COMMENT,
+	COLUMN_ORDER_STATE,
 	COLUMN_LAST
 };
-
-#define CH_ORDER_ICON_NEW		"dialog-information"
-#define CH_ORDER_ICON_SENT		"colorimeter-colorhug"
-#define CH_ORDER_ICON_PRINTED		"printer"
 
 /**
  * ch_shipping_error_dialog:
@@ -136,29 +134,6 @@ ch_shipping_find_by_id (GtkTreeModel *model,
 }
 
 /**
- * ch_shipping_set_order_state:
- **/
-static void
-ch_shipping_set_order_state (ChFactoryPrivate *priv,
-			      guint order_id,
-			      const gchar *state)
-{
-	gboolean ret;
-	GtkListStore *list_store;
-	GtkTreeIter iter;
-
-	list_store = GTK_LIST_STORE (gtk_builder_get_object (priv->builder, "liststore_orders"));
-	ret = ch_shipping_find_by_id (GTK_TREE_MODEL (list_store),
-				     &iter,
-				     order_id);
-	if (!ret)
-		return;
-	gtk_list_store_set (list_store, &iter,
-			    COLUMN_FILENAME, state,
-			    -1);
-}
-
-/**
  * ch_shipping_refresh_status:
  **/
 static void
@@ -174,7 +149,7 @@ ch_shipping_refresh_status (ChFactoryPrivate *priv)
 
 	/* update status */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "label_status"));
-	devices_left = ch_database_device_get_number (priv->database, CH_DATABASE_STATE_CALIBRATED, &error);
+	devices_left = ch_database_device_get_number (priv->database, CH_DEVICE_STATE_CALIBRATED, &error);
 	if (devices_left == G_MAXUINT) {
 		ch_shipping_error_dialog (priv, "Failed to get number of devices", error->message);
 		g_error_free (error);
@@ -208,7 +183,6 @@ static void
 ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 {
 	ChDatabaseOrder *order;
-	const gchar *icon;
 	gboolean ret;
 	GError *error = NULL;
 	GPtrArray *array;
@@ -230,11 +204,6 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 		if (!ret)
 			gtk_list_store_append (list_store, &iter);
 
-		if (order->sent_date == 0)
-			icon = CH_ORDER_ICON_NEW;
-		else
-			icon = CH_ORDER_ICON_SENT;
-
 		/* get the device ID if we can */
 		device_id = ch_database_order_get_device_id (priv->database,
 							     order->order_id,
@@ -243,7 +212,6 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 			device_id = 0;
 
 		gtk_list_store_set (list_store, &iter,
-				    COLUMN_FILENAME, icon,
 				    COLUMN_ORDER_ID, order->order_id,
 				    COLUMN_NAME, order->name,
 				    COLUMN_EMAIL, order->email,
@@ -252,6 +220,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 				    COLUMN_SHIPPED, order->sent_date,
 				    COLUMN_POSTAGE, order->postage,
 				    COLUMN_COMMENT, order->comment,
+				    COLUMN_ORDER_STATE, order->state,
 				    COLUMN_DEVICE_ID, device_id,
 				    -1);
 	}
@@ -273,6 +242,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gboolean ret;
 	gchar *address = NULL;
 	gchar *name = NULL;
+	GError *error = NULL;
 	GtkTreeIter iter;
 	GtkTreeModel *model;
 	GtkTreeSelection *selection;
@@ -294,8 +264,17 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			    COLUMN_DEVICE_ID, &device_id,
 			    -1);
 
-	/* update icon */
-	ch_shipping_set_order_state (priv, order_id, CH_ORDER_ICON_PRINTED);
+	/* update order status */
+	ret = ch_database_order_set_state (priv->database,
+					   order_id,
+					   CH_ORDER_STATE_PRINTED,
+					   &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to update order state",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
 
 	/* add to invoide total */
 	priv->invoices[postage]++;
@@ -309,7 +288,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 				ch_shipping_postage_to_string (postage),
 				0);
 	g_warning ("queue now %s", priv->output_csv->str);
-	ch_shipping_refresh_status (priv);
+	ch_shipping_refresh_orders (priv);
 out:
 	g_free (address);
 	g_free (name);
@@ -621,6 +600,8 @@ ch_shipping_comment_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		g_error_free (error);
 		goto out;
 	}
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_comment_text"));
+	gtk_entry_set_text (GTK_ENTRY (widget), comment);
 
 	/* show UI */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_comment"));
@@ -949,7 +930,7 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 skip:
 	/* get the oldest device we've got calibrated */
 	device_id = ch_database_device_find_oldest (priv->database,
-						    CH_DATABASE_STATE_CALIBRATED,
+						    CH_DEVICE_STATE_CALIBRATED,
 						    &error);
 	if (device_id == G_MAXUINT32) {
 		ch_shipping_error_dialog (priv, "Failed to get device", error->message);
@@ -979,7 +960,7 @@ skip:
 	/* mark the device as allocated */
 	ret = ch_database_device_set_state (priv->database,
 					    device_id,
-					    CH_DATABASE_STATE_ALLOCATED,
+					    CH_DEVICE_STATE_ALLOCATED,
 					    &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "Failed to allocate device", error->message);
@@ -1106,6 +1087,18 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		goto out;
 	}
 
+	/* update order status */
+	ret = ch_database_order_set_state (priv->database,
+					   order_id,
+					   CH_ORDER_STATE_SENT,
+					   &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to update order state",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
+
 	/* refresh state */
 	ch_shipping_refresh_orders (priv);
 out:
@@ -1180,6 +1173,7 @@ ch_shipping_row_activated_cb (GtkTreeView *treeview,
 	GtkTreeIter iter;
 	GtkTreeModel *model;
 	guint32 id = 0;
+	ChOrderState state;
 
 	/* get selection */
 	model = gtk_tree_view_get_model (treeview);
@@ -1192,10 +1186,20 @@ ch_shipping_row_activated_cb (GtkTreeView *treeview,
 	/* get data */
 	gtk_tree_model_get (model, &iter,
 			    COLUMN_ORDER_ID, &id,
+			    COLUMN_ORDER_STATE, &state,
 			    -1);
 	if (id == G_MAXUINT32)
 		goto out;
 	g_debug ("activated: %i", id);
+
+	/* do something smart */
+	if (state == CH_ORDER_STATE_NEW) {
+		ch_shipping_queue_button_cb (NULL, priv);
+	} else if (state == CH_ORDER_STATE_PRINTED) {
+		ch_shipping_shipped_button_cb (NULL, priv);
+	} else {
+		ch_shipping_comment_button_cb (NULL, priv);
+	}
 out:
 	return;
 }
@@ -1216,11 +1220,11 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 
 	/* column for images */
 	column = gtk_tree_view_column_new ();
-	renderer = gtk_cell_renderer_pixbuf_new ();
+	renderer = ch_cell_renderer_order_status_new ();
 	g_object_set (renderer, "stock-size", GTK_ICON_SIZE_BUTTON, NULL);
 	gtk_tree_view_column_pack_start (column, renderer, FALSE);
-	gtk_tree_view_column_add_attribute (column, renderer, "icon-name", COLUMN_FILENAME);
-	gtk_tree_view_column_set_title (column, "Status");
+	gtk_tree_view_column_add_attribute (column, renderer, "value", COLUMN_ORDER_STATE);
+	gtk_tree_view_column_set_title (column, "State");
 	gtk_tree_view_append_column (treeview, column);
 
 	/* column for name */

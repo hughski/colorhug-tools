@@ -1131,7 +1131,7 @@ ch_factory_measure_save (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
 		/* allow this device to be sent out */
 		ret = ch_database_device_set_state (priv->database,
 						    serial_number,
-						    CH_DATABASE_STATE_CALIBRATED,
+						    CH_DEVICE_STATE_CALIBRATED,
 						    &error);
 		if (!ret) {
 			g_warning ("failed to update database: %s", error->message);

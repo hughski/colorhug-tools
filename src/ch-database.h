@@ -47,13 +47,6 @@ struct _ChDatabaseClass
 	GObjectClass			 parent_class;
 };
 
-typedef enum {
-	CH_DATABASE_STATE_INIT,
-	CH_DATABASE_STATE_CALIBRATED,
-	CH_DATABASE_STATE_ALLOCATED,
-	CH_DATABASE_STATE_LAST
-} ChDatabaseState;
-
 typedef struct {
 	ChShippingPostage postage;
 	gchar		*address;
@@ -63,13 +56,14 @@ typedef struct {
 	gint64		 sent_date;
 	guint32		 order_id;
 	gchar		*comment;
+	ChOrderState	 state;
 } ChDatabaseOrder;
 
 GType		 ch_database_get_type		(void);
 ChDatabase	*ch_database_new		(void);
 void		 ch_database_set_uri		(ChDatabase	*database,
 						 const gchar	*uri);
-const gchar	*ch_database_state_to_string	(ChDatabaseState state);
+const gchar	*ch_database_state_to_string	(ChDeviceState state);
 guint32		 ch_database_add_device		(ChDatabase	*database,
 						 GError		**error);
 gboolean	 ch_database_device_set_order_id (ChDatabase	*database,
@@ -78,7 +72,7 @@ gboolean	 ch_database_device_set_order_id (ChDatabase	*database,
 						 GError		**error);
 gboolean	 ch_database_device_set_state	(ChDatabase	*database,
 						 guint32	 device_id,
-						 ChDatabaseState state,
+						 ChDeviceState state,
 						 GError		**error);
 gboolean	 ch_database_order_set_tracking	(ChDatabase	*database,
 						 guint32	 order_id,
@@ -88,17 +82,21 @@ gboolean	 ch_database_order_set_comment	(ChDatabase	*database,
 						 guint32	 order_id,
 						 const gchar	*comment,
 						 GError		**error);
+gboolean	 ch_database_order_set_state	(ChDatabase	*database,
+						 guint32	 order_id,
+						 ChOrderState	 state,
+						 GError		**error);
 gchar		*ch_database_order_get_comment	(ChDatabase	*database,
 						 guint32	 order_id,
 						 GError		**error);
 guint32		 ch_database_device_find_oldest	(ChDatabase	*database,
-						 ChDatabaseState state,
+						 ChDeviceState state,
 						 GError		**error);
 guint32		 ch_database_order_get_device_id (ChDatabase	*database,
 						 guint32	 order_id,
 						 GError		**error);
 guint		 ch_database_device_get_number	(ChDatabase	*database,
-						 ChDatabaseState state,
+						 ChDeviceState state,
 						 GError		**error);
 GPtrArray	*ch_database_get_all_orders	(ChDatabase	*database,
 						 GError		**error);
