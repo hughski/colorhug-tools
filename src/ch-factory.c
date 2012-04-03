@@ -1686,6 +1686,7 @@ main (int argc, char **argv)
 	ChFactoryPrivate *priv;
 	gboolean ret;
 	gboolean verbose = FALSE;
+	gchar *database_uri = NULL;
 	GError *error = NULL;
 	GOptionContext *context;
 	int status = 0;
@@ -1741,6 +1742,10 @@ main (int argc, char **argv)
 	g_signal_connect (priv->device_list, "device-removed",
 			  G_CALLBACK (ch_factory_device_removed_cb), priv);
 
+	/* set the database location */
+	database_uri = g_settings_get_string (priv->settings, "database-uri");
+	ch_database_set_uri (priv->database, database_uri);
+
 	/* ensure single instance */
 	priv->application = gtk_application_new ("com.hughski.ColorHug.Factory", 0);
 	g_signal_connect (priv->application, "startup",
@@ -1776,5 +1781,6 @@ main (int argc, char **argv)
 	g_free (priv->local_calibration_uri);
 	g_free (priv->local_firmware_uri);
 	g_free (priv);
+	g_free (database_uri);
 	return status;
 }

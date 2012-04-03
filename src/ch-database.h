@@ -66,6 +66,8 @@ typedef struct {
 
 GType		 ch_database_get_type		(void);
 ChDatabase	*ch_database_new		(void);
+void		 ch_database_set_uri		(ChDatabase	*database,
+						 const gchar	*uri);
 const gchar	*ch_database_state_to_string	(ChDatabaseState state);
 guint32		 ch_database_add_device		(ChDatabase	*database,
 						 GError		**error);

@@ -1509,6 +1509,7 @@ main (int argc, char **argv)
 	ChFactoryPrivate *priv;
 	gboolean ret;
 	gboolean verbose = FALSE;
+	gchar *database_uri = NULL;
 	GError *error = NULL;
 	GOptionContext *context;
 	guint i;
@@ -1546,6 +1547,10 @@ main (int argc, char **argv)
 	priv->database = ch_database_new ();
 	priv->settings = g_settings_new ("com.hughski.colorhug-tools");
 
+	/* set the database location */
+	database_uri = g_settings_get_string (priv->settings, "database-uri");
+	ch_database_set_uri (priv->database, database_uri);
+
 	/* reset the invoice count */
 	for (i = 0; i < CH_SHIPPING_POSTAGE_LAST; i++)
 		priv->invoices[i] = 0;
@@ -1577,6 +1582,7 @@ main (int argc, char **argv)
 		g_object_unref (priv->settings);
 	if (priv->database != NULL)
 		g_object_unref (priv->database);
+	g_free (database_uri);
 	g_free (priv);
 	return status;
 }

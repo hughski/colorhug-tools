@@ -40,6 +40,7 @@ static void     ch_database_finalize	(GObject     *object);
 struct _ChDatabasePrivate
 {
 	sqlite3				*db;
+	gchar				*uri;
 };
 
 G_DEFINE_TYPE (ChDatabase, ch_database, G_TYPE_OBJECT)
@@ -60,6 +61,18 @@ ch_database_state_to_string (ChDatabaseState state)
 }
 
 /**
+ * ch_database_set_uri:
+ **/
+void
+ch_database_set_uri (ChDatabase *database, const gchar *uri)
+{
+	g_return_if_fail (CH_IS_DATABASE (database));
+	g_return_if_fail (uri != NULL);
+	g_return_if_fail (database->priv->uri == NULL);
+	database->priv->uri = g_strdup (uri);
+}
+
+/**
  * ch_database_load:
  **/
 static gboolean
@@ -69,8 +82,6 @@ ch_database_load (ChDatabase *database, GError **error)
 	const gchar *statement;
 	gboolean ret = TRUE;
 	gchar *error_msg = NULL;
-	gchar *filename = NULL;
-	gchar *location = NULL;
 	GFile *file = NULL;
 	gint rc;
 
@@ -79,21 +90,15 @@ ch_database_load (ChDatabase *database, GError **error)
 		goto out;
 
 	/* open database */
-	location = g_build_filename (g_get_user_config_dir (),
-				     "colorhug",
-				     NULL);
-	file = g_file_new_for_path (location);
+	file = g_file_new_for_path (database->priv->uri);
 	ret = g_file_query_exists (file, NULL);
 	if (!ret) {
 		ret = g_file_make_directory_with_parents (file, NULL, error);
 		if (!ret)
 			goto out;
 	}
-	filename = g_build_filename (location,
-				     "devices.db",
-				     NULL);
-	g_debug ("trying to open database '%s'", filename);
-	rc = sqlite3_open (filename, &priv->db);
+	g_debug ("trying to open database '%s'", database->priv->uri);
+	rc = sqlite3_open (database->priv->uri, &priv->db);
 	if (rc != SQLITE_OK) {
 		ret = FALSE;
 		g_set_error (error, 1, 0,
@@ -131,8 +136,6 @@ ch_database_load (ChDatabase *database, GError **error)
 out:
 	if (file != NULL)
 		g_object_unref (file);
-	g_free (filename);
-	g_free (location);
 	return ret;
 }
 
@@ -820,6 +823,7 @@ ch_database_finalize (GObject *object)
 	ChDatabase *database = CH_DATABASE (object);
 	ChDatabasePrivate *priv = database->priv;
 
+	g_free (priv->uri);
 	if (priv->db != NULL)
 		sqlite3_close (priv->db);
 
