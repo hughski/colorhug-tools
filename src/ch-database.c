@@ -151,6 +151,9 @@ ch_database_load (ChDatabase *database, GError **error)
 		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
 	}
 
+	/* turn off fsync */
+	sqlite3_exec (priv->db, "PRAGMA synchronous=NORMAL", NULL, NULL, NULL);
+
 	/* monitor for changes */
 	file = g_file_new_for_path (database->priv->uri);
 	priv->file_monitor = g_file_monitor_file (file,
