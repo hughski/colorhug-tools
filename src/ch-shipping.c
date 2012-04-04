@@ -46,6 +46,7 @@ typedef struct {
 	GString		*output_csv;
 	guint		 invoices[CH_SHIPPING_POSTAGE_LAST];
 	GMainLoop	*loop;
+	GTimer		*database_timer;
 } ChFactoryPrivate;
 
 enum {
@@ -105,6 +106,16 @@ ch_shipping_close_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_shipping"));
 	gtk_widget_destroy (widget);
+}
+
+
+/**
+ * ch_shipping_database_timer_reset:
+ **/
+static void
+ch_shipping_database_timer_reset (ChFactoryPrivate *priv)
+{
+	g_timer_reset (priv->database_timer);
 }
 
 /**
@@ -265,6 +276,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			    -1);
 
 	/* update order status */
+	ch_shipping_database_timer_reset (priv);
 	ret = ch_database_order_set_state (priv->database,
 					   order_id,
 					   CH_ORDER_STATE_PRINTED,
@@ -711,6 +723,7 @@ ch_shipping_queue_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	for (i = 0; i < array->len; i++) {
 		recipient = g_ptr_array_index (array, i);
 		g_debug ("recipient=%s", recipient);
+		ch_shipping_database_timer_reset (priv);
 		queue_id = ch_database_queue_add (priv->database,
 					          recipient,
 					          &error);
@@ -822,6 +835,7 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		g_debug ("recipient=%s", recipient);
 
 		/* remove from db */
+		ch_shipping_database_timer_reset (priv);
 		ret = ch_database_queue_remove (priv->database,
 						recipient,
 						&error);
@@ -948,6 +962,7 @@ skip:
 	}
 
 	/* add to database */
+	ch_shipping_database_timer_reset (priv);
 	order_id = ch_database_add_order (priv->database, name, addr->str, email, postage, &error);
 	if (order_id == G_MAXUINT32) {
 		ch_shipping_error_dialog (priv, "Failed to add order", error->message);
@@ -1086,6 +1101,7 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 
 	/* save to the database */
+	ch_shipping_database_timer_reset (priv);
 	ret = ch_database_order_set_tracking (priv->database,
 					      order_id,
 					      tracking_number,
@@ -1151,6 +1167,7 @@ ch_shipping_comment_edit_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	comment = gtk_entry_get_text (GTK_ENTRY (widget));
 
 	/* save to the database */
+	ch_shipping_database_timer_reset (priv);
 	ret = ch_database_order_set_comment (priv->database,
 					     order_id,
 					     comment,
@@ -1666,6 +1683,10 @@ static void
 ch_shipping_database_changed_cb (ChDatabase *database,
 				 ChFactoryPrivate *priv)
 {
+	/* the change was done by us! */
+	if (g_timer_elapsed (priv->database_timer, NULL) < 10)
+		return;
+
 	/* just refresh the listview */
 	ch_shipping_refresh_orders (priv);
 }
@@ -1723,6 +1744,7 @@ main (int argc, char **argv)
 
 	priv = g_new0 (ChFactoryPrivate, 1);
 	priv->loop = g_main_loop_new (NULL, FALSE);
+	priv->database_timer = g_timer_new ();
 	priv->database = ch_database_new ();
 	g_signal_connect (priv->database, "changed",
 			  G_CALLBACK (ch_shipping_database_changed_cb), priv);
@@ -1755,6 +1777,7 @@ main (int argc, char **argv)
 
 	g_main_loop_unref (priv->loop);
 	g_object_unref (priv->application);
+	g_timer_destroy (priv->database_timer);
 	if (priv->output_csv != NULL)
 		g_string_free (priv->output_csv, TRUE);
 	if (priv->builder != NULL)
