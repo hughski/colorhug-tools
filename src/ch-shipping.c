@@ -250,6 +250,7 @@ static void
 ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
 	ChShippingPostage postage;
+	const gchar *postage_type;
 	gboolean ret;
 	gchar *address = NULL;
 	gchar *name = NULL;
@@ -291,14 +292,22 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* add to invoide total */
 	priv->invoices[postage]++;
 
+	/* get postage type */
+	if (postage == CH_SHIPPING_POSTAGE_UK) {
+		postage_type = "LARGE LETTER";
+	} else {
+		postage_type = "SMALL PACKAGE";
+	}
+
 	/* add to XML string in the format:
 	 * name,addr1,addr2,addr3,addr4,addr5,serial,shipping,cost */
-	g_string_append_printf (priv->output_csv, "\"%s\",%s,%04i,%s,%i\n",
+	g_string_append_printf (priv->output_csv, "\"%s\",%s,%04i,%s,%i,%s\n",
 				name,
 				address,
 				device_id,
 				ch_shipping_postage_to_string (postage),
-				0);
+				0,
+				postage_type);
 	g_warning ("queue now %s", priv->output_csv->str);
 	ch_shipping_refresh_orders (priv);
 out:
@@ -380,7 +389,7 @@ ch_shipping_print_labels_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* add the output header */
 	g_string_prepend (priv->output_csv,
-			  "name,address1,address2,address3,address4,address5,serial,shipping,cost\n");
+			  "name,address1,address2,address3,address4,address5,serial,shipping,cost,type\n");
 
 	/* dump the print data to a file */
 	labels_data = g_settings_get_string (priv->settings, "labels-data");
