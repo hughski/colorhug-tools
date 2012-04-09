@@ -1190,6 +1190,7 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	CdMat3x3 calibration;
 	ChFactoryMeasure *measure;
 	gboolean ret;
+	gchar *email_body = NULL;
 	gchar *error_tmp;
 	gchar *filename;
 	gchar *local_patches_source;
@@ -1339,6 +1340,19 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			 CA_PROP_EVENT_ID, "alarm-clock-elapsed",
 			 CA_PROP_APPLICATION_NAME, _("ColorHug Factory"),
 			 CA_PROP_EVENT_DESCRIPTION, _("Calibration Completed"), NULL);
+
+	/* email me as I'm sitting downstairs */
+	email_body = g_strdup_printf ("%i devices ready!", measure->devices->len);
+	ret = ch_shipping_send_email ("hughsient@gmail.com",
+				      "info@hughski.com",
+				      "Calibration complete",
+				      email_body,
+				      &error);
+	if (!ret) {
+		g_warning ("Failed to get send email: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
 out:
 	g_free (local_patches_source);
 	if (devices != NULL)

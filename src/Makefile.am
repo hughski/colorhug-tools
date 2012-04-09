@@ -20,6 +20,7 @@ colorhug_factory_SOURCES =				\
 	ch-flash-md.h					\
 	ch-database.c					\
 	ch-database.h					\
+	ch-shipping-common.c				\
 	ch-shipping-common.h				\
 	ch-factory.c
 
