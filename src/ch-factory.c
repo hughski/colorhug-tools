@@ -49,6 +49,8 @@ typedef struct {
 	ChDeviceQueue	*device_queue;
 	gchar		*local_calibration_uri;
 	gchar		*local_firmware_uri;
+	gchar		*firmware_data;
+	gsize		 firmware_size;
 	GPtrArray	*updates;
 	GSettings	*settings;
 	GtkApplication	*application;
@@ -396,20 +398,129 @@ ch_factory_get_active_devices (ChFactoryPrivate *priv)
 }
 
 /**
- * ch_factory_flash_button_cb:
+ * ch_factory_measure_firmware_boot_cb:
  **/
 static void
-ch_factory_flash_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+ch_factory_measure_firmware_boot_cb (GObject *source,
+				     GAsyncResult *res,
+				     gpointer user_data)
 {
-	ChFlashUpdate *update_tmp = NULL;
+	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
 	gboolean ret;
-	gchar *data = NULL;
-	gchar *filename = NULL;
+	GError *error = NULL;
+
+	/* get result */
+	ret = ch_device_queue_process_finish (priv->device_queue,
+					      res,
+					      &error);
+	if (!ret) {
+		g_warning ("failed to boot flash: %s",
+			   error->message);
+		g_error_free (error);
+	}
+}
+
+/**
+ * ch_factory_measure_firmware_verify_cb:
+ **/
+static void
+ch_factory_measure_firmware_verify_cb (GObject *source,
+				       GAsyncResult *res,
+				       gpointer user_data)
+{
+	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
+	gboolean ret;
 	GError *error = NULL;
 	GPtrArray *devices = NULL;
-	gsize len = 0;
 	guint i;
 	GUsbDevice *device;
+
+	/* get result */
+	ret = ch_device_queue_process_finish (priv->device_queue,
+					      res,
+					      &error);
+	if (!ret) {
+		g_warning ("failed to verify firmware on devices: %s",
+			   error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* boot flash */
+	devices = ch_factory_get_active_devices (priv);
+	for (i = 0; i < devices->len; i++) {
+		device = g_ptr_array_index (devices, i);
+		ch_device_queue_boot_flash (priv->device_queue,
+					    device);
+	}
+	ch_device_queue_process_async (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
+				       NULL,
+				       ch_factory_measure_firmware_boot_cb,
+				       priv);
+out:
+	if (devices != NULL)
+		g_ptr_array_unref (devices);
+}
+
+/**
+ * ch_factory_measure_firmware_write_cb:
+ **/
+static void
+ch_factory_measure_firmware_write_cb (GObject *source,
+				      GAsyncResult *res,
+				      gpointer user_data)
+{
+	gboolean ret;
+	GError *error = NULL;
+	GPtrArray *devices = NULL;
+	guint i;
+	GUsbDevice *device;
+	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
+
+	/* get result */
+	ret = ch_device_queue_process_finish (priv->device_queue,
+					      res,
+					      &error);
+	if (!ret) {
+		g_warning ("failed to write firmware on devices: %s",
+			   error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* verify flash code */
+	devices = ch_factory_get_active_devices (priv);
+	for (i = 0; i < devices->len; i++) {
+		device = g_ptr_array_index (devices, i);
+		ch_device_queue_verify_firmware (priv->device_queue,
+						 device,
+						 (const guint8 *) priv->firmware_data,
+						 priv->firmware_size);
+	}
+	ch_device_queue_process_async (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
+				       NULL,
+				       ch_factory_measure_firmware_verify_cb,
+				       priv);
+out:
+	if (devices != NULL)
+		g_ptr_array_unref (devices);
+}
+
+/**
+ * ch_factory_ensure_firmware_data:
+ **/
+static gboolean
+ch_factory_ensure_firmware_data (ChFactoryPrivate *priv, GError **error)
+{
+	gboolean ret = TRUE;
+	guint i;
+	ChFlashUpdate *update_tmp = NULL;
+	gchar *filename = NULL;
+
+	if (priv->firmware_data != NULL)
+		goto out;
 
 	/* get the newest stable firmware */
 	for (i = 0; i < priv->updates->len; i++) {
@@ -417,17 +528,45 @@ ch_factory_flash_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		if (update_tmp->state == CH_FLASH_MD_STATE_STABLE)
 			break;
 	}
-	if (update_tmp == NULL)
+	if (update_tmp == NULL) {
+		ret = FALSE;
+		g_set_error_literal (error, 1, 0,
+				     "Failed to find any stable firmware");
 		goto out;
+	}
 	filename = g_build_filename (priv->local_firmware_uri,
 				     update_tmp->filename,
 				     NULL);
 
 	/* load file */
-	ret = g_file_get_contents (filename, &data, &len, &error);
+	ret = g_file_get_contents (filename,
+				   &priv->firmware_data,
+				   &priv->firmware_size,
+				   error);
+	if (!ret)
+		goto out;
+out:
+	g_free (filename);
+	return ret;
+}
+
+/**
+ * ch_factory_flash_button_cb:
+ **/
+static void
+ch_factory_flash_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	gboolean ret;
+	GError *error = NULL;
+	GPtrArray *devices = NULL;
+	guint i;
+	GUsbDevice *device;
+
+	/* get the newest stable firmware */
+	ret = ch_factory_ensure_firmware_data (priv, &error);
 	if (!ret) {
-		g_warning ("failed to read firmware file %s: %s",
-			   filename, error->message);
+		g_warning ("failed to read firmware: %s",
+			   error->message);
 		g_error_free (error);
 		goto out;
 	}
@@ -441,60 +580,17 @@ ch_factory_flash_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 						   0);
 		ch_device_queue_write_firmware (priv->device_queue,
 						device,
-						(const guint8 *) data,
-						len);
+						(const guint8 *) priv->firmware_data,
+						priv->firmware_size);
 	}
-	ret = ch_device_queue_process (priv->device_queue,
+	ch_device_queue_process_async (priv->device_queue,
 				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
 				       NULL,
-				       &error);
-	if (!ret) {
-		g_warning ("failed to write firmware on devices: %s",
-			   error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* verify flash code */
-	for (i = 0; i < devices->len; i++) {
-		device = g_ptr_array_index (devices, i);
-		ch_device_queue_verify_firmware (priv->device_queue,
-						 device,
-						 (const guint8 *) data,
-						 len);
-	}
-	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
-				       NULL,
-				       &error);
-	if (!ret) {
-		g_warning ("failed to verify firmware on devices: %s",
-			   error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* boot flash */
-	for (i = 0; i < devices->len; i++) {
-		device = g_ptr_array_index (devices, i);
-		ch_device_queue_boot_flash (priv->device_queue,
-					    device);
-	}
-	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
-				       NULL,
-				       &error);
-	if (!ret) {
-		g_warning ("failed to boot flash: %s",
-			   error->message);
-		g_clear_error (&error);
-		goto out;
-	}
+				       ch_factory_measure_firmware_write_cb,
+				       priv);
 out:
 	if (devices != NULL)
 		g_ptr_array_unref (devices);
-	g_free (data);
-	g_free (filename);
 }
 
 /**
@@ -1795,6 +1891,7 @@ main (int argc, char **argv)
 		g_object_unref (priv->database);
 	g_free (priv->local_calibration_uri);
 	g_free (priv->local_firmware_uri);
+	g_free (priv->firmware_data);
 	g_free (priv);
 	g_free (database_uri);
 	return status;
