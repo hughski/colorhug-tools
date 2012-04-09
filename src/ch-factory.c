@@ -1644,12 +1644,16 @@ ch_factory_device_removed_cb (GUsbDeviceList *list,
 		ch_factory_removed_device (priv, device);
 	}
 }
+
 static void
 ch_factory_device_queue_device_failed_cb (ChDeviceQueue	*device_queue,
 					  GUsbDevice	*device,
 					  const gchar	*error_message,
 					  ChFactoryPrivate *priv)
 {
+	g_return_if_fail (CH_IS_DEVICE_QUEUE (device_queue));
+	g_return_if_fail (G_USB_IS_DEVICE (device));
+	g_return_if_fail (error_message != NULL);
 	g_debug ("device %s down, error: %s",
 		 g_usb_device_get_platform_id (device),
 		 error_message);
