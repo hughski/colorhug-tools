@@ -629,7 +629,6 @@ typedef struct {
 	GPtrArray	*samples_ti1;
 	GPtrArray	*devices;
 	GHashTable	*results; /* key = device id, value = GPtrArray of CdColorXYZ values */
-	GMainLoop	*loop;
 	ChFactoryPrivate *priv;
 } ChFactoryMeasure;
 
@@ -774,8 +773,6 @@ ch_factory_measure (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
 	/* update global percentage */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
 	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), 0.0f);
-
-	measure->loop = g_main_loop_new (NULL, FALSE);
 
 	/* measure */
 	for (j = 0; j < measure->samples_ti1->len; j++) {
