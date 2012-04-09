@@ -73,7 +73,10 @@ gboolean	 ch_database_device_set_order_id (ChDatabase	*database,
 						 GError		**error);
 gboolean	 ch_database_device_set_state	(ChDatabase	*database,
 						 guint32	 device_id,
-						 ChDeviceState state,
+						 ChDeviceState	 state,
+						 GError		**error);
+ChDeviceState	 ch_database_device_get_state	(ChDatabase	*database,
+						 guint32	 device_id,
 						 GError		**error);
 gboolean	 ch_database_order_set_tracking	(ChDatabase	*database,
 						 guint32	 order_id,

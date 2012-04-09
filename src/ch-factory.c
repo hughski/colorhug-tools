@@ -244,7 +244,9 @@ ch_factory_set_device_error (ChFactoryPrivate *priv,
 static void
 ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 {
+	ChDeviceState state;
 	const gchar *title;
+	const gchar *icon;
 	gboolean ret;
 	gchar *description = NULL;
 	gchar *error_tmp;
@@ -289,9 +291,16 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 			description = g_strdup_printf ("ColorHug #%06i", serial_number);
 		else
 			description = g_strdup ("ColorHug #XXXXXX");
+		state = ch_database_device_get_state (priv->database,
+						      serial_number,
+						      NULL);
+		if (state == CH_DEVICE_STATE_CALIBRATED)
+			icon = CH_DEVICE_ICON_CALIBRATED;
+		else
+			icon = CH_DEVICE_ICON_FIRMWARE;
 		gtk_list_store_set (list_store, &iter,
 				    COLUMN_DESCRIPTION, description,
-				    COLUMN_FILENAME, CH_DEVICE_ICON_FIRMWARE,
+				    COLUMN_FILENAME, icon,
 				    COLUMN_ERROR, "re-inserted",
 				    COLUMN_ENABLED, TRUE,
 				    -1);

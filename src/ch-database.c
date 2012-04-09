@@ -261,6 +261,62 @@ out:
 }
 
 /**
+ * ch_database_device_get_state_cb:
+ **/
+static gint
+ch_database_device_get_state_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+{
+	ChDeviceState *state = (ChDeviceState *) data;
+	*state = atoi (argv[0]);
+	return 0;
+}
+
+/**
+ * ch_database_device_get_state:
+ **/
+ChDeviceState
+ch_database_device_get_state (ChDatabase *database,
+			      guint32 device_id,
+			      GError **error)
+{
+	ChDatabasePrivate *priv = database->priv;
+	gboolean ret;
+	gchar *error_msg = NULL;
+	gchar *statement = NULL;
+	gint rc;
+	ChDeviceState state = CH_DEVICE_STATE_LAST;
+
+	/* ensure db is loaded */
+	ret = ch_database_load (database, error);
+	if (!ret)
+		goto out;
+
+	/* find */
+	statement = g_strdup_printf ("SELECT state "
+				     "FROM devices WHERE device_id = '%i';",
+				     device_id);
+	rc = sqlite3_exec (priv->db,
+			   statement,
+			   ch_database_device_get_state_cb,
+			   &state,
+			   &error_msg);
+	if (rc != SQLITE_OK) {
+		g_set_error (error, 1, 0,
+			     "failed to find entry: %s",
+			     sqlite3_errmsg (priv->db));
+		goto out;
+	}
+	if (state == CH_DEVICE_STATE_LAST) {
+		g_set_error (error, 1, 0,
+			     "No devices for id %i", device_id);
+		goto out;
+	}
+out:
+	g_free (statement);
+	return state;
+}
+
+/**
  * ch_database_order_set_tracking:
  * @database: a valid #ChDatabase instance
  * @id: the device serial number
