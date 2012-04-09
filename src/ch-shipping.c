@@ -28,7 +28,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <lcms2.h>
-#include <colorhug.h>
 #include <canberra-gtk.h>
 
 #include "ch-cell-renderer-date.h"
