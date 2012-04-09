@@ -904,13 +904,15 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	ChShippingPostage postage = CH_SHIPPING_POSTAGE_LAST;
 	const gchar *email = NULL;
 	const gchar *name = NULL;
+	const gchar *sending_day = NULL;
 	gboolean ret;
+	gchar *from = NULL;
+	GDateTime *date = NULL;
 	GError *error = NULL;
 	GString *addr = g_string_new ("");
+	GString *str = NULL;
 	guint32 device_id;
 	guint32 order_id;
-	gchar *from = NULL;
-	GString *str = NULL;
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_paypal"));
 	name = gtk_entry_get_text (GTK_ENTRY (widget));
@@ -1003,10 +1005,36 @@ skip:
 	/* write email */
 	str = g_string_new ("");
 	from = g_settings_get_string (priv->settings, "invoice-sender");
-	g_string_append_printf (str, "ColorHug order %i has been created and allocated device number %i\n",
+	date = g_date_time_new_now_local ();
+	switch (g_date_time_get_day_of_week (date)) {
+	case G_DATE_MONDAY:
+		sending_day = "Tuesday";
+		break;
+	case G_DATE_TUESDAY:
+		sending_day = "Wednesday";
+		break;
+	case G_DATE_WEDNESDAY:
+		sending_day = "Thursday";
+		break;
+	case G_DATE_THURSDAY:
+		sending_day = "Friday";
+		break;
+	default:
+		sending_day = "Monday";
+		break;
+	}
+	g_string_append_printf (str, "ColorHug order %i has been created and allocated device number %i.\n",
 				order_id,
 				device_id);
-	g_string_append (str, "The invoice will be printed and the package will be sent today or tomorrow. We'll also let you know when we've put it in the post.\n");
+	g_string_append_printf (str, "The invoice will be printed and the package will be sent on %s.\n",
+				sending_day);
+	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED) {
+		g_string_append (str, "Once the device has been posted we will email again with the tracking number.\n");
+	} else {
+		g_string_append (str, "Once the device has been posted a confirmation email will be sent.\n");
+	}
 	g_string_append (str, "\n");
 	g_string_append (str, "Thanks again for your support for this new and exciting project.\n");
 	g_string_append (str, "\n");
@@ -1027,6 +1055,8 @@ skip:
 	/* refresh state */
 	ch_shipping_refresh_orders (priv);
 out:
+	if (date != NULL)
+		g_date_time_unref (date);
 	if (str != NULL)
 		g_string_free (str, TRUE);
 	g_free (from);
