@@ -720,7 +720,7 @@ ch_shipping_queue_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			      "to tell you that your device is built, tested and ready to send.\n\n");
 	g_string_append (str, "Thanks again for your patience and support.\n\n");
 	g_string_append (str, "Many thanks,\n\n");
-	g_string_append (str, "Richard Hughes");
+	g_string_append (str, "Ania Hughes");
 
 	/* get promotion status */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "checkbutton_queue_promote"));
@@ -834,7 +834,7 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_string_append (str, "otherwise I'll have to allocate your ColorHug to somebody else.\n\n");
 	g_string_append (str, "Thanks again for your support for this new and exciting project.\n\n");
 	g_string_append (str, "Many thanks,\n\n");
-	g_string_append (str, "Richard Hughes");
+	g_string_append (str, "Ania Hughes");
 
 	/* send each email */
 	sender = g_settings_get_string (priv->settings, "invoice-sender");
@@ -1038,7 +1038,7 @@ skip:
 	g_string_append (str, "\n");
 	g_string_append (str, "Thanks again for your support for this new and exciting project.\n");
 	g_string_append (str, "\n");
-	g_string_append (str, "Richard Hughes\n");
+	g_string_append (str, "Ania Hughes\n");
 
 	/* actually send the email */
 	ret = ch_shipping_send_email (from,
@@ -1124,7 +1124,7 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_string_append (str, "\n");
 	g_string_append (str, "Thanks again for your support for this new and exciting project.\n");
 	g_string_append (str, "\n");
-	g_string_append (str, "Richard Hughes\n");
+	g_string_append (str, "Ania Hughes\n");
 
 	/* actually send the email */
 	ret = ch_shipping_send_email (from,
