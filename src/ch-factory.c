@@ -47,6 +47,7 @@
 
 typedef struct {
 	ChDeviceQueue	*device_queue;
+	gboolean	 in_calibration;
 	gchar		*local_calibration_uri;
 	gchar		*local_firmware_uri;
 	gchar		*firmware_data;
@@ -59,6 +60,9 @@ typedef struct {
 	GUsbContext	*usb_ctx;
 	GUsbDeviceList	*device_list;
 	ChDatabase	*database;
+	GPtrArray	*samples_ti1;
+	guint		 samples_ti1_idx;
+	GHashTable	*results; /* key = device id, value = GPtrArray of CdColorXYZ values */
 } ChFactoryPrivate;
 
 enum {
@@ -245,8 +249,8 @@ static void
 ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 {
 	ChDeviceState state;
-	const gchar *title;
 	const gchar *icon;
+	const gchar *title;
 	gboolean ret;
 	gchar *description = NULL;
 	gchar *error_tmp;
@@ -256,6 +260,23 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	guint8 hw_version;
 	guint serial_number;
 
+	/* is a calibration in progress */
+	if (priv->in_calibration) {
+		list_store = GTK_LIST_STORE (gtk_builder_get_object (priv->builder, "liststore_devices"));
+		ret = ch_factory_find_by_id (GTK_TREE_MODEL (list_store),
+					     &iter,
+					     g_usb_device_get_platform_id (device));
+		if (!ret)
+			gtk_list_store_append (list_store, &iter);
+		gtk_list_store_set (list_store, &iter,
+				    COLUMN_ID, g_usb_device_get_platform_id (device),
+				    COLUMN_DEVICE, device,
+				    COLUMN_FILENAME, CH_DEVICE_ICON_ERROR,
+				    COLUMN_ERROR, "re-inserted",
+				    -1);
+		goto out;
+	}
+
 	/* open device */
 	ret = ch_device_open (device, &error);
 	if (!ret) {
@@ -263,7 +284,7 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 		title = _("Failed to open device");
 		ch_factory_error_dialog (priv, title, error->message);
 		g_error_free (error);
-		return;
+		goto out;
 	}
 
 	/* add to model */
@@ -282,8 +303,11 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	ch_device_queue_get_serial_number (priv->device_queue,
 					   device,
 					   &serial_number);
+	ch_device_queue_get_hardware_version (priv->device_queue,
+					      device,
+					      &hw_version);
 	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_CONTINUE_ERRORS,
 				       NULL,
 				       &error);
 	if (ret) {
@@ -317,20 +341,6 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	}
 
 	/* check the hardware version */
-	ch_device_queue_get_hardware_version (priv->device_queue,
-					      device,
-					      &hw_version);
-	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
-				       NULL,
-				       &error);
-	if (!ret) {
-		ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_ERROR);
-		ch_factory_set_device_error (priv, device, error->message);
-		g_warning ("Failed to get HWver: %s", error->message);
-		g_error_free (error);
-		goto out;
-	}
 	if (hw_version != 1) {
 		error_tmp = g_strdup_printf ("HWver %i", hw_version);
 		ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_ERROR);
@@ -360,7 +370,6 @@ ch_factory_removed_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	if (!ret)
 		return;
 	gtk_list_store_set (list_store, &iter,
-			    COLUMN_DESCRIPTION, "-",
 			    COLUMN_FILENAME, CH_DEVICE_ICON_MISSING,
 			    COLUMN_DEVICE, NULL,
 			    COLUMN_ERROR, "removed",
@@ -603,12 +612,34 @@ out:
 }
 
 /**
+ * ch_factory_set_serial_cb:
+ **/
+static void
+ch_factory_set_serial_cb (GObject *source,
+			  GAsyncResult *res,
+			  gpointer user_data)
+{
+	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
+	gboolean ret;
+	GError *error = NULL;
+
+	/* get result */
+	ret = ch_device_queue_process_finish (priv->device_queue,
+					      res,
+					      &error);
+	if (!ret) {
+		g_warning ("failed to set serial numbers: %s",
+			   error->message);
+		g_error_free (error);
+	}
+}
+
+/**
  * ch_factory_serial_button_cb:
  **/
 static void
 ch_factory_serial_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
-	gboolean ret;
 	gchar *description;
 	gchar *filename = NULL;
 	GError *error = NULL;
@@ -669,15 +700,11 @@ ch_factory_serial_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 
 	/* process queue */
-	ret = ch_device_queue_process (priv->device_queue,
+	ch_device_queue_process_async (priv->device_queue,
 				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
 				       NULL,
-				       &error);
-	if (!ret) {
-		g_warning ("failed to allocate serial numbers on devices: %s",
-			   error->message);
-		g_error_free (error);
-	}
+				       ch_factory_set_serial_cb,
+				       priv);
 out:
 	g_free (filename);
 }
@@ -730,25 +757,18 @@ ch_factory_lcms_error_cb (cmsContext ContextID,
 	g_warning ("LCMS: %s", text);
 }
 
-typedef struct {
-	GPtrArray	*samples_ti1;
-	GPtrArray	*devices;
-	GHashTable	*results; /* key = device id, value = GPtrArray of CdColorXYZ values */
-	ChFactoryPrivate *priv;
-} ChFactoryMeasure;
-
 /**
  * ch_factory_load_samples:
  **/
 static gboolean
-ch_factory_load_samples (ChFactoryMeasure *measure,
+ch_factory_load_samples (ChFactoryPrivate *priv,
 			 const gchar *ti1_fn,
 			 GError **error)
 {
 	CdColorRGB *rgb;
 	cmsHANDLE ti1 = NULL;
 	const gchar *tmp;
-	gboolean ret;
+	gboolean ret = TRUE;
 	gchar *found_lcms2_bodge;
 	gchar *ti1_data = NULL;
 	gsize ti1_size;
@@ -756,6 +776,10 @@ ch_factory_load_samples (ChFactoryMeasure *measure,
 	guint i;
 	guint number_of_sets = 0;
 	guint table_count;
+
+	/* already loaded */
+	if (priv->samples_ti1->len > 0)
+		goto out;
 
 	/* open ti1 file as input */
 	g_debug ("loading %s", ti1_fn);
@@ -802,7 +826,7 @@ ch_factory_load_samples (ChFactoryMeasure *measure,
 		rgb->G = cmsIT8GetDataRowColDbl(ti1, i, col) / 100.0f;
 		col = cmsIT8FindDataFormat(ti1, "RGB_B");
 		rgb->B = cmsIT8GetDataRowColDbl(ti1, i, col) / 100.0f;
-		g_ptr_array_add (measure->samples_ti1, rgb);
+		g_ptr_array_add (priv->samples_ti1, rgb);
 	}
 out:
 	if (ti1 != NULL)
@@ -811,132 +835,178 @@ out:
 	return ret;
 }
 
-static gboolean
-ch_factory_loop_quit_cb (gpointer user_data)
-{
-	GMainLoop *loop = (GMainLoop *) user_data;
-	g_main_loop_quit (loop);
-	return FALSE;
-}
-
-
 /**
  * ch_factory_device_is_shit:
  **/
 static void
-ch_factory_device_is_shit (ChFactoryMeasure *measure,
+ch_factory_device_is_shit (ChFactoryPrivate *priv,
 			   GUsbDevice *device,
 			   const gchar *error_msg)
 {
 	g_debug ("Taking %s out of the list",
 		 g_usb_device_get_platform_id (device));
-	ch_factory_set_device_state (measure->priv, device, CH_DEVICE_ICON_ERROR);
-	ch_factory_set_device_error (measure->priv, device, error_msg);
-	g_ptr_array_remove (measure->devices, device);
-	g_hash_table_remove (measure->results,
+	ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_ERROR);
+	ch_factory_set_device_error (priv, device, error_msg);
+	ch_factory_set_device_enabled (priv, device, FALSE);
+	g_hash_table_remove (priv->results,
 			     g_usb_device_get_platform_id (device));
 }
 
+static void ch_factory_measure		(ChFactoryPrivate *priv);
+static void ch_factory_measure_save	(ChFactoryPrivate *priv);
+
 /**
- * ch_factory_loop_sleep:
+ * ch_factory_measure_done_cb:
  **/
 static void
-ch_factory_loop_sleep (guint duration_ms)
+ch_factory_measure_done_cb (GObject *source,
+			    GAsyncResult *res,
+			    gpointer user_data)
 {
-	GMainLoop *loop;
-	loop = g_main_loop_new (NULL, FALSE);
-	g_timeout_add (duration_ms, ch_factory_loop_quit_cb, loop);
-	g_main_loop_run (loop);
-	g_main_loop_unref (loop);
+	CdColorXYZ *xyz;
+	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
+	gboolean ret;
+	gchar *email_body = NULL;
+	GError *error = NULL;
+	GPtrArray *devices = NULL;
+	GPtrArray *results_tmp;
+	guint i;
+	GUsbDevice *device;
+
+	/* get return value */
+	ret = ch_device_queue_process_finish (priv->device_queue,
+					      res,
+					      &error);
+	if (!ret) {
+		g_warning ("failed to submit commands: %s",
+			   error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* save sample data */
+	devices = ch_factory_get_active_devices (priv);
+	for (i = 0; i < devices->len; i++) {
+		device = g_ptr_array_index (devices, i);
+		xyz = g_object_get_data (G_OBJECT (device), "ChFactory::buffer");
+		g_debug ("Adding %f,%f,%f for %s",
+			 xyz->X, xyz->Y, xyz->Z,
+			 g_usb_device_get_platform_id (device));
+		results_tmp = g_hash_table_lookup (priv->results,
+						   g_usb_device_get_platform_id (device));
+		g_ptr_array_add (results_tmp, xyz);
+		g_object_steal_data (G_OBJECT (device), "ChFactory::buffer");
+	}
+
+	/* success */
+	priv->samples_ti1_idx++;
+
+	/* more samples to do */
+	if (priv->samples_ti1_idx < priv->samples_ti1->len) {
+		ch_factory_measure (priv);
+		goto out;
+	}
+
+	/* we're done */
+	ch_factory_measure_save (priv);
+
+	/* play sound */
+	g_debug ("playing sound");
+	ca_context_play (ca_gtk_context_get (), 0,
+			 CA_PROP_EVENT_ID, "alarm-clock-elapsed",
+			 CA_PROP_APPLICATION_NAME, _("ColorHug Factory"),
+			 CA_PROP_EVENT_DESCRIPTION, _("Calibration Completed"), NULL);
+
+	/* email me as I'm sitting downstairs */
+	email_body = g_strdup_printf ("%i devices ready!", devices->len);
+	ret = ch_shipping_send_email ("hughsient@gmail.com",
+				      "info@hughski.com",
+				      "Calibration complete",
+				      email_body,
+				      &error);
+	if (!ret) {
+		g_warning ("Failed to get send email: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* hide the sample window */
+	priv->in_calibration = FALSE;
+	gtk_widget_hide (GTK_WIDGET (priv->sample_window));
+out:
+	g_free (email_body);
+	if (devices != NULL)
+		g_ptr_array_unref (devices);
+}
+
+/**
+ * ch_factory_measure_cb:
+ **/
+static gboolean
+ch_factory_measure_cb (ChFactoryPrivate *priv)
+{
+	CdColorXYZ *xyz;
+	GPtrArray *devices;
+	guint i;
+	GUsbDevice *device;
+
+	/* do this async */
+	devices = ch_factory_get_active_devices (priv);
+	for (i = 0; i < devices->len; i++) {
+		device = g_ptr_array_index (devices, i);
+		g_debug ("measuring from %s",
+			 g_usb_device_get_platform_id (device));
+
+		xyz = cd_color_xyz_new ();
+		g_object_set_data (G_OBJECT (device), "ChFactory::buffer", xyz);
+		ch_device_queue_take_readings_xyz (priv->device_queue,
+						   device,
+						   0,
+						   xyz);
+	}
+
+	/* run this sample */
+	ch_device_queue_process_async (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
+				       NULL,
+				       ch_factory_measure_done_cb,
+				       priv);
+
+	/* wait for async reply */
+	if (devices != NULL)
+		g_ptr_array_unref (devices);
+	return FALSE;
 }
 
 /**
  * ch_factory_measure:
  **/
 static void
-ch_factory_measure (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
+ch_factory_measure (ChFactoryPrivate *priv)
 {
 	CdColorRGB *rgb_tmp;
-	CdColorXYZ *xyz;
-	gboolean ret;
-	GError *error = NULL;
-	GPtrArray *results_tmp;
-	guint i;
-	guint j;
-	GUsbDevice *device;
 	GtkWidget *widget;
 
-	/* setup the measure window */
-//	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1180, 1850);
-	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1850, 1180);
-	ch_sample_window_set_fraction (CH_SAMPLE_WINDOW (priv->sample_window), 0);
-	gtk_window_set_modal (priv->sample_window, TRUE);
-	gtk_window_stick (priv->sample_window);
-	gtk_window_present (priv->sample_window);
-	gtk_window_move (priv->sample_window, 10, 10);
+	/* we're trying to get a sample that does not exist */
+	if (priv->samples_ti1_idx >= priv->samples_ti1->len) {
+		g_assert_not_reached ();
+		return;
+	}
+
+	/* get samples */
+	rgb_tmp = g_ptr_array_index (priv->samples_ti1, priv->samples_ti1_idx);
+
+	ch_sample_window_set_color (CH_SAMPLE_WINDOW (priv->sample_window), rgb_tmp);
+	ch_sample_window_set_fraction (CH_SAMPLE_WINDOW (priv->sample_window),
+					 (gdouble) priv->samples_ti1_idx / (gdouble) priv->samples_ti1->len);
 
 	/* update global percentage */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
-	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), 0.0f);
+	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget),
+				       (gdouble) priv->samples_ti1_idx / (gdouble) priv->samples_ti1->len);
 
-	/* measure */
-	for (j = 0; j < measure->samples_ti1->len; j++) {
-		rgb_tmp = g_ptr_array_index (measure->samples_ti1, j);
-
-		ch_sample_window_set_color (CH_SAMPLE_WINDOW (priv->sample_window), rgb_tmp);
-		ch_sample_window_set_fraction (CH_SAMPLE_WINDOW (priv->sample_window),
-						 (gdouble) j / (gdouble) measure->samples_ti1->len);
-
-		/* update global percentage */
-		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
-		gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget),
-					       (gdouble) j / (gdouble) measure->samples_ti1->len);
-
-		/* this has to be long enough for the screen to refresh */
-		ch_factory_loop_sleep (200);
-
-		/* do this async */
-		for (i = 0; i < measure->devices->len; i++) {
-			device = g_ptr_array_index (measure->devices, i);
-			g_debug ("measuring from %s",
-				 g_usb_device_get_platform_id (device));
-
-			xyz = cd_color_xyz_new ();
-			g_object_set_data (G_OBJECT (device), "ChFactory::buffer", xyz);
-			ch_device_queue_take_readings_xyz (priv->device_queue,
-							   device,
-							   0,
-							   xyz);
-		}
-
-		/* run this sample */
-		ret = ch_device_queue_process (priv->device_queue,
-					       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
-					       NULL,
-					       &error);
-		if (!ret) {
-			g_warning ("failed to submit command: %s",
-				   error->message);
-			g_error_free (error);
-			break;
-		}
-
-		/* save sample data */
-		for (i = 0; i < measure->devices->len; i++) {
-			device = g_ptr_array_index (measure->devices, i);
-			xyz = g_object_get_data (G_OBJECT (device), "ChFactory::buffer");
-			g_debug ("Adding %f,%f,%f for %s",
-				 xyz->X, xyz->Y, xyz->Z,
-				 g_usb_device_get_platform_id (device));
-			results_tmp = g_hash_table_lookup (measure->results,
-							   g_usb_device_get_platform_id (device));
-			g_ptr_array_add (results_tmp, xyz);
-			g_object_steal_data (G_OBJECT (device), "ChFactory::buffer");
-		}
-
-		/* add a bit for luck */
-		ch_factory_loop_sleep (20);
-	}
+	/* this has to be long enough for the screen to refresh */
+	g_timeout_add (200, (GSourceFunc) ch_factory_measure_cb, priv);
 }
 
 /**
@@ -1097,188 +1167,170 @@ out:
 }
 
 /**
- * ch_factory_measure_save:
+ * ch_factory_measure_save_device:
  **/
 static void
-ch_factory_measure_save (ChFactoryPrivate *priv, ChFactoryMeasure *measure)
+ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 {
 	gboolean ret;
-	gchar *filename_ccmx;
-	gchar *filename_ti3;
+	gchar *filename_ccmx = NULL;
+	gchar *filename_ti3 = NULL;
 	gchar *local_spectral_reference;
 	gchar *standard_error = NULL;
 	gchar *standard_output = NULL;
 	GError *error = NULL;
 	gint exit_status;
-	GPtrArray *argv;
+	GPtrArray *argv = NULL;
 	GPtrArray *results_tmp;
 	guint32 serial_number = 0;
-	guint i;
-	GUsbDevice *device;
 
 	/* get the ti3 file */
 	local_spectral_reference = g_settings_get_string (priv->settings,
 							  "local-spectral-reference");
 
-	/* save to a file for backup and create ccmx file */
-	for (i = 0; i < measure->devices->len; i++) {
-		device = g_ptr_array_index (measure->devices, i);
-
-		/* get the serial number for the filename */
-		ch_device_queue_get_serial_number (priv->device_queue,
-						   device,
-						   &serial_number);
-		ret = ch_device_queue_process (priv->device_queue,
-					       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
-					       NULL,
-					       &error);
-		if (!ret) {
-			ch_factory_device_is_shit (measure, device, error->message);
-			g_debug ("failed to get serial number: %s", error->message);
-			g_clear_error (&error);
-			goto skip;
-		}
-		filename_ti3 = g_strdup_printf ("%s/data/calibration-%06i.ti3",
-						priv->local_calibration_uri,
-						serial_number);
-		filename_ccmx = g_strdup_printf ("%s/archive/calibration-%06i.ccmx",
-						 priv->local_calibration_uri,
-						 serial_number);
-
-		/* save to file */
-		results_tmp = g_hash_table_lookup (measure->results,
-						   g_usb_device_get_platform_id (device));
-		ret = ch_factory_save_to_file (filename_ti3,
-					       measure->samples_ti1,
-					       results_tmp);
-		if (!ret) {
-			ch_factory_device_is_shit (measure, device, "save");
-			g_warning ("failed to save to file: %s", "save");
-			goto out;
-		}
-
-		/* create ccmx file */
-		argv = g_ptr_array_new_with_free_func (g_free);
-		g_ptr_array_add (argv, g_strdup ("/usr/bin/ccxxmake"));
-		g_ptr_array_add (argv, g_strdup ("-TLCD"));
-		g_ptr_array_add (argv, g_strdup ("-TLCD"));
-		g_ptr_array_add (argv, g_strdup ("-IFactory Calibration"));
-		g_ptr_array_add (argv, g_strdup ("-DFactory Calibration"));
-		g_ptr_array_add (argv, g_strdup_printf ("-f%s/%s,%s",
-							priv->local_calibration_uri,
-							local_spectral_reference,
-							filename_ti3));
-		g_ptr_array_add (argv, g_strdup (filename_ccmx));
-		g_ptr_array_add (argv, NULL);
-
-		/* spawn sync process */
-		ret = g_spawn_sync (NULL,
-				    (gchar **) argv->pdata,
-				    NULL, 0,
-				    NULL, NULL,
-				    &standard_output,
-				    &standard_error,
-				    &exit_status,
-				    &error);
-		if (!ret) {
-			ch_factory_device_is_shit (measure, device, error->message);
-			g_warning ("failed to spawn: %s", error->message);
-			g_error_free (error);
-			goto out;
-		}
-		g_debug ("stdout=%s, stderr=%s", standard_output, standard_error);
-		if (exit_status != 0) {
-			ch_factory_device_is_shit (measure, device, "no ccmx");
-			g_warning ("***\n*** failed to generate %s: %s ***\n***",
-				   filename_ccmx, standard_error);
-			goto skip;
-		}
-
-		/* add in extra usage data */
-		ret = ch_factory_repair_ccmx (filename_ccmx, &error);
-		if (!ret) {
-			ch_factory_device_is_shit (measure, device, error->message);
-			g_debug ("failed to repair ccmx: %s",
-				 error->message);
-			g_error_free (error);
-			goto out;
-		}
-
-		/* save ccmx to slot 0 */
-		ret = ch_device_queue_set_calibration_ccmx (priv->device_queue,
-							    device,
-							    0,
-							    filename_ccmx,
-							    &error);
-		if (!ret) {
-			ch_factory_device_is_shit (measure, device, error->message);
-			g_debug ("failed to set ccmx file: %s", error->message);
-			g_clear_error (&error);
-			goto skip;
-		}
-		ret = ch_device_queue_process (priv->device_queue,
-					       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
-					       NULL,
-					       &error);
-		if (!ret) {
-			ch_factory_device_is_shit (measure, device, error->message);
-			g_debug ("failed to set ccmx file: %s", error->message);
-			g_clear_error (&error);
-			goto skip;
-		}
-
-		/* success */
-		ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_CALIBRATED);
-
-		/* allow this device to be sent out */
-		ret = ch_database_device_set_state (priv->database,
-						    serial_number,
-						    CH_DEVICE_STATE_CALIBRATED,
-						    &error);
-		if (!ret) {
-			g_warning ("failed to update database: %s", error->message);
-			g_error_free (error);
-			goto out;
-		}
-skip:
-		if (argv != NULL) {
-			g_ptr_array_unref (argv);
-			argv = NULL;
-		}
-		g_free (filename_ti3);
-		filename_ti3 = NULL;
-		g_free (filename_ccmx);
-		filename_ccmx = NULL;
+	/* get the serial number for the filename */
+	ch_device_queue_get_serial_number (priv->device_queue,
+					   device,
+					   &serial_number);
+	ret = ch_device_queue_process (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       NULL,
+				       &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_debug ("failed to get serial number: %s", error->message);
+		g_error_free (error);
+		goto out;
 	}
+	filename_ti3 = g_strdup_printf ("%s/data/calibration-%06i.ti3",
+					priv->local_calibration_uri,
+					serial_number);
+	filename_ccmx = g_strdup_printf ("%s/archive/calibration-%06i.ccmx",
+					 priv->local_calibration_uri,
+					 serial_number);
+
+	/* save to file */
+	results_tmp = g_hash_table_lookup (priv->results,
+					   g_usb_device_get_platform_id (device));
+	ret = ch_factory_save_to_file (filename_ti3,
+				       priv->samples_ti1,
+				       results_tmp);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, "save");
+		g_warning ("failed to save to file: %s", "save");
+		g_error_free (error);
+		goto out;
+	}
+
+	/* create ccmx file */
+	argv = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv, g_strdup ("/usr/bin/ccxxmake"));
+	g_ptr_array_add (argv, g_strdup ("-TLCD"));
+	g_ptr_array_add (argv, g_strdup ("-TLCD"));
+	g_ptr_array_add (argv, g_strdup ("-IFactory Calibration"));
+	g_ptr_array_add (argv, g_strdup ("-DFactory Calibration"));
+	g_ptr_array_add (argv, g_strdup_printf ("-f%s/%s,%s",
+						priv->local_calibration_uri,
+						local_spectral_reference,
+						filename_ti3));
+	g_ptr_array_add (argv, g_strdup (filename_ccmx));
+	g_ptr_array_add (argv, NULL);
+
+	/* spawn sync process */
+	ret = g_spawn_sync (NULL,
+			    (gchar **) argv->pdata,
+			    NULL, 0,
+			    NULL, NULL,
+			    &standard_output,
+			    &standard_error,
+			    &exit_status,
+			    &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_warning ("failed to spawn: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+	g_debug ("stdout=%s, stderr=%s", standard_output, standard_error);
+	if (exit_status != 0) {
+		ch_factory_device_is_shit (priv, device, "no ccmx");
+		g_warning ("***\n*** failed to generate %s: %s ***\n***",
+			   filename_ccmx, standard_error);
+		goto out;
+	}
+
+	/* add in extra usage data */
+	ret = ch_factory_repair_ccmx (filename_ccmx, &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_debug ("failed to repair ccmx: %s",
+			 error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* save ccmx to slot 0 */
+	ret = ch_device_queue_set_calibration_ccmx (priv->device_queue,
+						    device,
+						    0,
+						    filename_ccmx,
+						    &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_debug ("failed to set ccmx file: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+	ret = ch_device_queue_process (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       NULL,
+				       &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_debug ("failed to set ccmx file: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* allow this device to be sent out */
+	ret = ch_database_device_set_state (priv->database,
+					    serial_number,
+					    CH_DEVICE_STATE_CALIBRATED,
+					    &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_warning ("failed to update database: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* success */
+	ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_CALIBRATED);
 out:
+	if (argv != NULL)
+		g_ptr_array_unref (argv);
+	g_free (filename_ccmx);
+	g_free (filename_ti3);
 	g_free (local_spectral_reference);
 }
 
 /**
- * ch_factory_measure_new:
- **/
-static ChFactoryMeasure *
-ch_factory_measure_new (ChFactoryPrivate *priv)
-{
-	ChFactoryMeasure *measure;
-	measure = g_new0 (ChFactoryMeasure, 1);
-	measure->devices = g_ptr_array_new_with_free_func ((GDestroyNotify) g_object_unref);
-	measure->results = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_ptr_array_unref);
-	measure->samples_ti1 = g_ptr_array_new_with_free_func ((GDestroyNotify) cd_color_rgb_free);
-	measure->priv = priv;
-	return measure;
-}
-
-/**
- * ch_factory_measure_free:
+ * ch_factory_measure_save:
  **/
 static void
-ch_factory_measure_free (ChFactoryMeasure *measure)
+ch_factory_measure_save (ChFactoryPrivate *priv)
 {
-	g_ptr_array_unref (measure->devices);
-	g_ptr_array_unref (measure->samples_ti1);
-	g_hash_table_unref (measure->results);
-	g_free (measure);
+	GPtrArray *devices;
+	guint i;
+	GUsbDevice *device;
+
+	/* save to a file for backup and create ccmx file */
+	devices = ch_factory_get_active_devices (priv);
+	for (i = 0; i < devices->len; i++) {
+		device = g_ptr_array_index (devices, i);
+		ch_factory_measure_save_device (priv, device);
+	}
+	g_ptr_array_unref (devices);
 }
 
 /**
@@ -1290,27 +1342,26 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	CdColorRGB *rgb_ambient = NULL;
 	CdColorRGB rgb_tmp;
 	CdMat3x3 calibration;
-	ChFactoryMeasure *measure;
 	gboolean ret;
-	gchar *email_body = NULL;
 	gchar *error_tmp;
 	gchar *filename;
 	gchar *local_patches_source;
 	GError *error = NULL;
 	GPtrArray *devices = NULL;
-	GPtrArray *devices_ready = NULL;
 	guint16 calibration_map[6];
 	guint i;
 	GUsbDevice *device;
 
+	/* ignore devices that are replugged */
+	priv->in_calibration = TRUE;
+
 	/* get the ti1 file from gsettings */
 	local_patches_source = g_settings_get_string (priv->settings,
 						      "local-patches-source");
-	measure = ch_factory_measure_new (priv);
 	filename = g_build_filename (priv->local_calibration_uri,
 				     local_patches_source,
 				     NULL);
-	ret = ch_factory_load_samples (measure, filename, &error);
+	ret = ch_factory_load_samples (priv, filename, &error);
 	if (!ret) {
 		g_warning ("can't load samples: %s", error->message);
 		g_error_free (error);
@@ -1369,17 +1420,6 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 					      CH_WRITE_EEPROM_MAGIC);
 	}
 
-	/* process queue */
-	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
-				       NULL,
-				       &error);
-	if (!ret) {
-		g_warning ("Failed to get setup devices: %s", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
 	/* check an ambient reading */
 	for (i = 0; i < devices->len; i++) {
 		device = g_ptr_array_index (devices, i);
@@ -1413,6 +1453,7 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 
 	/* get still active devices */
+	g_hash_table_remove_all (priv->results);
 	devices = ch_factory_get_active_devices (priv);
 	for (i = 0; i < devices->len; i++) {
 		device = g_ptr_array_index (devices, i);
@@ -1421,50 +1462,58 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 				   GINT_TO_POINTER (0));
 
 		/* add to devices list */
-		g_ptr_array_add (measure->devices, g_object_ref (device));
-		g_hash_table_insert (measure->results,
+		g_hash_table_insert (priv->results,
 				     g_strdup (g_usb_device_get_platform_id (device)),
 				     g_ptr_array_new_with_free_func ((GDestroyNotify) cd_color_xyz_free));
 	}
 
 	/* nothing to do */
-	if (measure->devices->len == 0)
+	if (devices->len == 0)
 		goto out;
+
+	/* setup the measure window */
+//	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1180, 1850);
+	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1850, 1180);
+	ch_sample_window_set_fraction (CH_SAMPLE_WINDOW (priv->sample_window), 0);
+	gtk_window_stick (priv->sample_window);
+	gtk_window_present (priv->sample_window);
+	gtk_window_move (priv->sample_window, 10, 10);
+
+	/* update global percentage */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
+	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), 0.0f);
 
 	/* take the measurements */
-	ch_factory_measure (priv, measure);
-
-	/* save files */
-	ch_factory_measure_save (priv, measure);
-
-	/* play sound */
-	ca_context_play (ca_gtk_context_get (), 0,
-			 CA_PROP_EVENT_ID, "alarm-clock-elapsed",
-			 CA_PROP_APPLICATION_NAME, _("ColorHug Factory"),
-			 CA_PROP_EVENT_DESCRIPTION, _("Calibration Completed"), NULL);
-
-	/* email me as I'm sitting downstairs */
-	email_body = g_strdup_printf ("%i devices ready!", measure->devices->len);
-	ret = ch_shipping_send_email ("hughsient@gmail.com",
-				      "info@hughski.com",
-				      "Calibration complete",
-				      email_body,
-				      &error);
-	if (!ret) {
-		g_warning ("Failed to get send email: %s", error->message);
-		g_error_free (error);
-		goto out;
-	}
+	priv->samples_ti1_idx = 0;
+	ch_factory_measure (priv);
 out:
 	g_free (local_patches_source);
 	if (devices != NULL)
 		g_ptr_array_unref (devices);
-	if (devices_ready != NULL)
-		g_ptr_array_unref (devices_ready);
 	g_free (filename);
-	ch_factory_measure_free (measure);
-	/* hide the sample window */
-	gtk_widget_hide (GTK_WIDGET (priv->sample_window));
+}
+
+/**
+ * ch_factory_boot_cb:
+ **/
+static void
+ch_factory_boot_cb (GObject *source,
+		    GAsyncResult *res,
+		    gpointer user_data)
+{
+	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
+	gboolean ret;
+	GError *error = NULL;
+
+	/* get result */
+	ret = ch_device_queue_process_finish (priv->device_queue,
+					      res,
+					      &error);
+	if (!ret) {
+		g_warning ("failed to boot: %s",
+			   error->message);
+		g_error_free (error);
+	}
 }
 
 /**
@@ -1473,8 +1522,6 @@ out:
 static void
 ch_factory_boot_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
-	gboolean ret;
-	GError *error = NULL;
 	GPtrArray *devices;
 	guint i;
 	GUsbDevice *device;
@@ -1492,16 +1539,35 @@ ch_factory_boot_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 
 	/* process queue */
-	ret = ch_device_queue_process (priv->device_queue,
+	ch_device_queue_process_async (priv->device_queue,
 				       CH_DEVICE_QUEUE_PROCESS_FLAGS_CONTINUE_ERRORS,
 				       NULL,
-				       &error);
+				       ch_factory_boot_cb,
+				       priv);
+	g_ptr_array_unref (devices);
+}
+
+/**
+ * ch_factory_set_leds_cb:
+ **/
+static void
+ch_factory_set_leds_cb (GObject *source,
+			GAsyncResult *res,
+			gpointer user_data)
+{
+	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
+	gboolean ret;
+	GError *error = NULL;
+
+	/* get result */
+	ret = ch_device_queue_process_finish (priv->device_queue,
+					      res,
+					      &error);
 	if (!ret) {
-		g_warning ("failed to reset devices: %s",
+		g_warning ("failed to set-leds: %s",
 			   error->message);
 		g_error_free (error);
 	}
-	g_ptr_array_unref (devices);
 }
 
 /**
@@ -1518,7 +1584,6 @@ ch_factory_row_activated_cb (GtkTreeView *treeview,
 	gboolean ret;
 	gchar *id = NULL;
 	GUsbDevice *device = NULL;
-	GError *error = NULL;
 
 	/* get selection */
 	model = gtk_tree_view_get_model (treeview);
@@ -1545,14 +1610,11 @@ ch_factory_row_activated_cb (GtkTreeView *treeview,
 				  5,
 				  100,
 				  100);
-	ret = ch_device_queue_process (priv->device_queue,
+	ch_device_queue_process_async (priv->device_queue,
 				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
 				       NULL,
-				       &error);
-	if (!ret) {
-		g_debug ("failed to flash LEDs: %s", error->message);
-		g_error_free (error);
-	}
+				       ch_factory_set_leds_cb,
+				       priv);
 out:
 	if (device != NULL)
 		g_object_unref (device);
@@ -1862,6 +1924,10 @@ main (int argc, char **argv)
 	g_signal_connect (priv->device_list, "device-removed",
 			  G_CALLBACK (ch_factory_device_removed_cb), priv);
 
+	/* for calibration */
+	priv->results = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_ptr_array_unref);
+	priv->samples_ti1 = g_ptr_array_new_with_free_func ((GDestroyNotify) cd_color_rgb_free);
+
 	/* set the database location */
 	database_uri = g_settings_get_string (priv->settings, "database-uri");
 	ch_database_set_uri (priv->database, database_uri);
@@ -1898,6 +1964,8 @@ main (int argc, char **argv)
 		g_object_unref (priv->settings);
 	if (priv->database != NULL)
 		g_object_unref (priv->database);
+	g_ptr_array_unref (priv->samples_ti1);
+	g_hash_table_unref (priv->results);
 	g_free (priv->local_calibration_uri);
 	g_free (priv->local_firmware_uri);
 	g_free (priv->firmware_data);
