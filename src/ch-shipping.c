@@ -1127,15 +1127,19 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_string_append (str, "Ania Hughes\n");
 
 	/* actually send the email */
-	ret = ch_shipping_send_email (from,
-				      email,
-				      "Your ColorHug has been dispatched!",
-				      str->str,
-				      &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to send email", error->message);
-		g_error_free (error);
-		goto out;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "checkbutton_shipped_email"));
+	ret = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
+	if (ret) {
+		ret = ch_shipping_send_email (from,
+					      email,
+					      "Your ColorHug has been dispatched!",
+					      str->str,
+					      &error);
+		if (!ret) {
+			ch_shipping_error_dialog (priv, "Failed to send email", error->message);
+			g_error_free (error);
+			goto out;
+		}
 	}
 
 	/* save to the database */
