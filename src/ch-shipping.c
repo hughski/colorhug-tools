@@ -252,6 +252,8 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	const gchar *postage_type;
 	gboolean ret;
 	gchar *address = NULL;
+	gchar **address_split = NULL;
+	GString *address_escaped = NULL;
 	gchar *name = NULL;
 	GError *error = NULL;
 	GtkTreeIter iter;
@@ -260,6 +262,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GtkTreeView *treeview;
 	guint32 device_id;
 	guint32 order_id;
+	guint i;
 
 	/* get selected item */
 	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
@@ -274,6 +277,23 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			    COLUMN_POSTAGE, &postage,
 			    COLUMN_DEVICE_ID, &device_id,
 			    -1);
+
+	address_split = g_strsplit (address, "|", -1);
+	if (g_strv_length (address_split) == 1) {
+		/* old format */
+		address_escaped = g_string_new (address);
+	} else {
+		address_escaped = g_string_new ("");
+		for (i = 0; address_split[i] != NULL; i++) {
+			g_string_append_printf (address_escaped,
+						"\"%s\",",
+						address_split[i]);
+		}
+		if (address_escaped->len > 0) {
+			g_string_set_size (address_escaped,
+					   address_escaped-> len - 1);
+		}
+	}
 
 	/* update order status */
 	ch_shipping_database_timer_reset (priv);
@@ -292,7 +312,8 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	priv->invoices[postage]++;
 
 	/* get postage type */
-	if (postage == CH_SHIPPING_POSTAGE_UK) {
+	if (postage == CH_SHIPPING_POSTAGE_UK ||
+	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED) {
 		postage_type = "LARGE LETTER";
 	} else {
 		postage_type = "SMALL PACKAGE";
@@ -302,7 +323,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	 * name,addr1,addr2,addr3,addr4,addr5,serial,shipping,cost */
 	g_string_append_printf (priv->output_csv, "\"%s\",%s,%04i,%s,%i,%s\n",
 				name,
-				address,
+				address_escaped->str,
 				device_id,
 				ch_shipping_postage_to_string (postage),
 				0,
@@ -310,6 +331,9 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_warning ("queue now %s", priv->output_csv->str);
 	ch_shipping_refresh_orders (priv);
 out:
+	if (address_escaped != NULL)
+		g_string_free (address_escaped, TRUE);
+	g_strfreev (address_split);
 	g_free (address);
 	g_free (name);
 }
@@ -825,9 +849,7 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_string_append (str, "I am pleased to announce that the third batch of ColorHugs are now built, ");
 	g_string_append (str, "tested and ready to ship.\n\n");
 	g_string_append (str, "You are now being given an opportunity to purchase one ColorHug. ");
-	g_string_append (str, "If you don't want to buy a ColorHug just yet, just let me know ");
-	g_string_append (str, "and I'll keep you on the list and offer the hardware from the second batch to someone else.\n\n");
-	g_string_append (str, "Please read the details on the link below *carefully* before you purchase a ColorHug. ");
+	g_string_append (str, "Please read the details on the link below *carefully* before you make the purchase.");
 	g_string_append (str, "Please don't share the URL as there are only 100 units in this batch.\n\n");
 	g_string_append (str, "http://www.hughski.com/buy-from-preorder.html\n\n");
 	g_string_append (str, "I would ask you either decline the offer or complete the purchase within 7 days, ");
@@ -931,15 +953,15 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* add address */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr1"));
-	g_string_append_printf (addr, "\"%s\",", gtk_entry_get_text (GTK_ENTRY (widget)));
+	g_string_append_printf (addr, "%s|", gtk_entry_get_text (GTK_ENTRY (widget)));
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr2"));
-	g_string_append_printf (addr, "\"%s\",", gtk_entry_get_text (GTK_ENTRY (widget)));
+	g_string_append_printf (addr, "%s|", gtk_entry_get_text (GTK_ENTRY (widget)));
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr3"));
-	g_string_append_printf (addr, "\"%s\",", gtk_entry_get_text (GTK_ENTRY (widget)));
+	g_string_append_printf (addr, "%s|", gtk_entry_get_text (GTK_ENTRY (widget)));
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr4"));
-	g_string_append_printf (addr, "\"%s\",", gtk_entry_get_text (GTK_ENTRY (widget)));
+	g_string_append_printf (addr, "%s|", gtk_entry_get_text (GTK_ENTRY (widget)));
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr5"));
-	g_string_append_printf (addr, "\"%s\"", gtk_entry_get_text (GTK_ENTRY (widget)));
+	g_string_append (addr, gtk_entry_get_text (GTK_ENTRY (widget)));
 
 	/* get postage */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping1"));
