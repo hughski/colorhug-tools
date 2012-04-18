@@ -892,6 +892,7 @@ ch_database_get_queue (ChDatabase *database,
 	array_tmp = g_ptr_array_new ();
 	statement = g_strdup ("SELECT email "
 			      "FROM queue "
+			      "WHERE added < 1334656345692440 "
 			      "ORDER BY added ASC");
 	rc = sqlite3_exec (priv->db,
 			   statement,
