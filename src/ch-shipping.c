@@ -1390,11 +1390,11 @@ ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, 
 		value = lines[i];
 
 		/* get email */
-		if (!g_str_has_prefix (value, "You received a payment of") &&
-		    g_strstr_len (value, -1, "@") &&
-		    !g_str_has_prefix (value, "Payment sent to ")) {
+		if (g_strstr_len (value, -1, "@") != NULL &&
+		    g_strstr_len (value, -1, "info@hughski.com") == NULL) {
 			widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_email"));
 			gtk_entry_set_text (GTK_ENTRY (widget), value);
+			continue;
 		}
 
 		/* get postage */
@@ -1421,16 +1421,18 @@ ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, 
 				g_warning ("no postage %s", value);
 				g_assert_not_reached ();
 			}
+			continue;
 		}
 
-		if (g_str_has_prefix (value, "Send-to address") ||
-		    g_str_has_prefix (value, "Postal address") ||
-		    g_str_has_prefix (value, "Shipping address")) {
+		/* get address */
+		if (g_strstr_len (value, -1, "end-to address") != NULL ||
+		    g_strstr_len (value, -1, "ostal address") != NULL ||
+		    g_strstr_len (value, -1, "hipping address") != NULL) {
 			is_address = TRUE;
 			continue;
 		}
 		if (is_address) {
-			if (value[0] == '\t') {
+			if (value[0] == '\0') {
 				is_address = FALSE;
 				continue;
 			}
@@ -1457,6 +1459,7 @@ ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, 
 				g_assert_not_reached ();
 			}
 			cnt++;
+			continue;
 		}
 	}
 
