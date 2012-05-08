@@ -1,7 +1,6 @@
 INCLUDES =						\
 	$(GTK_CFLAGS)					\
 	$(COLORHUG_CFLAGS)				\
-	$(LCMS_CFLAGS)					\
 	$(SQLITE_CFLAGS)				\
 	$(CANBERRA_CFLAGS)				\
 	-DG_LOG_DOMAIN=\"Ch\"				\
@@ -26,7 +25,6 @@ colorhug_factory_SOURCES =				\
 
 colorhug_factory_LDADD =				\
 	$(GTK_LIBS)					\
-	$(LCMS_LIBS)					\
 	$(COLORHUG_LIBS)				\
 	$(SQLITE_LIBS)					\
 	$(CANBERRA_LIBS)				\

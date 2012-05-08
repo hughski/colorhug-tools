@@ -28,7 +28,6 @@
 #include <math.h>
 #include <gusb.h>
 #include <stdlib.h>
-#include <lcms2.h>
 #include <colorhug.h>
 #include <canberra-gtk.h>
 
@@ -747,17 +746,6 @@ ch_factory_check_leds_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 }
 
 /**
- * ch_factory_lcms_error_cb:
- **/
-static void
-ch_factory_lcms_error_cb (cmsContext ContextID,
-			  cmsUInt32Number error_code,
-			  const char *text)
-{
-	g_warning ("LCMS: %s", text);
-}
-
-/**
  * ch_factory_load_samples:
  **/
 static gboolean
@@ -766,16 +754,12 @@ ch_factory_load_samples (ChFactoryPrivate *priv,
 			 GError **error)
 {
 	CdColorRGB *rgb;
-	cmsHANDLE ti1 = NULL;
-	const gchar *tmp;
+	CdIt8 *ti1 = NULL;
 	gboolean ret = TRUE;
-	gchar *found_lcms2_bodge;
 	gchar *ti1_data = NULL;
 	gsize ti1_size;
-	guint col;
 	guint i;
 	guint number_of_sets = 0;
-	guint table_count;
 
 	/* already loaded */
 	if (priv->samples_ti1->len > 0)
@@ -787,50 +771,22 @@ ch_factory_load_samples (ChFactoryPrivate *priv,
 	if (!ret)
 		goto out;
 
-	/* hack to fix lcms2 */
-	found_lcms2_bodge = g_strstr_len (ti1_data, ti1_size, "END_DATA\n");
-	if (found_lcms2_bodge != NULL)
-		found_lcms2_bodge[9] = '\0';
-
 	/* load the ti1 data */
-	cmsSetLogErrorHandler (ch_factory_lcms_error_cb);
-	ti1 = cmsIT8LoadFromMem (NULL, ti1_data, ti1_size);
-	if (ti1 == NULL) {
-		ret = FALSE;
-		g_set_error (error, 1, 0, "Cannot open %s", ti1_fn);
+	ti1 = cd_it8_new ();
+	ret = cd_it8_load_from_data (ti1, ti1_data, ti1_size, error);
+	if (!ret)
 		goto out;
-	}
-
-	/* select correct sheet */
-	table_count = cmsIT8TableCount (ti1);
-	g_debug ("selecting sheet %i of %i (%s)",
-		 0, table_count,
-		 cmsIT8GetSheetType (ti1));
-	cmsIT8SetTable (ti1, 0);
-
-	/* check color format */
-	tmp = cmsIT8GetProperty (ti1, "COLOR_REP");
-	if (g_strcmp0 (tmp, "RGB") != 0) {
-		ret = FALSE;
-		g_set_error (error, 1, 0, "Invalid format: %s", tmp);
-		goto out;
-	}
-	number_of_sets = cmsIT8GetPropertyDbl (ti1, "NUMBER_OF_SETS");
+	number_of_sets = cd_it8_get_data_size (ti1);
 
 	/* work out what colors to show */
 	for (i = 0; i < number_of_sets; i++) {
 		rgb = cd_color_rgb_new ();
-		col = cmsIT8FindDataFormat(ti1, "RGB_R");
-		rgb->R = cmsIT8GetDataRowColDbl(ti1, i, col) / 100.0f;
-		col = cmsIT8FindDataFormat(ti1, "RGB_G");
-		rgb->G = cmsIT8GetDataRowColDbl(ti1, i, col) / 100.0f;
-		col = cmsIT8FindDataFormat(ti1, "RGB_B");
-		rgb->B = cmsIT8GetDataRowColDbl(ti1, i, col) / 100.0f;
+		cd_it8_get_data_item (ti1, i, rgb, NULL);
 		g_ptr_array_add (priv->samples_ti1, rgb);
 	}
 out:
 	if (ti1 != NULL)
-		cmsIT8Free (ti1);
+		g_object_unref (ti1);
 	g_free (ti1_data);
 	return ret;
 }
@@ -1009,159 +965,26 @@ ch_factory_measure (ChFactoryPrivate *priv)
 }
 
 /**
- * ch_factory_normalize_to_y:
- **/
-static void
-ch_factory_normalize_to_y (GPtrArray *samples_xyz, gdouble scale)
-{
-	CdColorXYZ *xyz;
-	guint i;
-	gdouble normalize = 0.0f;
-
-	/* first, find largest */
-	for (i = 0; i < samples_xyz->len; i++) {
-		xyz = g_ptr_array_index (samples_xyz, i);
-		if (xyz->Y > normalize)
-			normalize = xyz->Y;
-	}
-
-	/* scale all the readings to 100 */
-	normalize = scale / normalize;
-	for (i = 0; i < samples_xyz->len; i++) {
-		xyz = g_ptr_array_index (samples_xyz, i);
-		xyz->X *= normalize;
-		xyz->Y *= normalize;
-		xyz->Z *= normalize;
-	}
-}
-
-/**
- * ch_factory_save_to_file:
+ * ch_factory_measure_check_matrix:
  **/
 static gboolean
-ch_factory_save_to_file (const gchar *ti3_fn,
-			 GPtrArray *array_ti1,
-			 GPtrArray *array_ti3)
+ch_factory_measure_check_matrix (const CdMat3x3 *calibration, GError **error)
 {
-	cmsHANDLE ti3 = NULL;
-	CdColorRGB *rgb;
-	CdColorXYZ *xyz;
-	CdColorXYZ xyz_lumi;
-	guint i;
-	gboolean ret;
-	gchar *lumi_str = NULL;
+	gboolean ret = TRUE;
+	gdouble det;
 
-	/* calculate the absolute XYZ in candelas per meter squared */
-	cd_color_clear_xyz (&xyz_lumi);
-	for (i = 0; i < 4; i++) {
-		xyz = g_ptr_array_index (array_ti3, i);
-		xyz_lumi.X += xyz->X;
-		xyz_lumi.Y += xyz->Y;
-		xyz_lumi.Z += xyz->Z;
-	}
-	xyz_lumi.X /= 4;
-	xyz_lumi.Y /= 4;
-	xyz_lumi.Z /= 4;
-	lumi_str = g_strdup_printf ("%f %f %f", xyz_lumi.X, xyz_lumi.Y, xyz_lumi.Z);
+#define CH_DEVICE_DETERMINANT_AVE	21.53738
+#define CH_DEVICE_DETERMINANT_ERROR	10.00000
 
-	/* normalize results */
-	ch_factory_normalize_to_y (array_ti3, 100.0f);
-
-	/* write to a ti3 file as output */
-	ti3 = cmsIT8Alloc (NULL);
-	cmsIT8SetSheetType (ti3, "CTI3");
-	cmsIT8SetPropertyStr (ti3, "DESCRIPTOR",
-			      "Calibration Target chart information 3");
-	cmsIT8SetPropertyStr (ti3, "ORIGINATOR",
-			      "ColorHug Factory");
-	cmsIT8SetPropertyStr (ti3, "DEVICE_CLASS",
-			      "DISPLAY");
-	cmsIT8SetPropertyStr (ti3, "COLOR_REP",
-			      "RGB_XYZ");
-	cmsIT8SetPropertyStr (ti3, "TARGET_INSTRUMENT",
-			      "ColorHug");
-	cmsIT8SetPropertyStr (ti3, "INSTRUMENT_TYPE_SPECTRAL",
-			      "NO");
-	cmsIT8SetPropertyStr (ti3, "LUMINANCE_XYZ_CDM2", lumi_str);
-	cmsIT8SetPropertyStr (ti3, "NORMALIZED_TO_Y_100", "YES");
-	cmsIT8SetPropertyDbl (ti3, "NUMBER_OF_FIELDS", 7);
-	cmsIT8SetPropertyDbl (ti3, "NUMBER_OF_SETS", array_ti1->len);
-	cmsIT8SetDataFormat (ti3, 0, "SAMPLE_ID");
-	cmsIT8SetDataFormat (ti3, 1, "RGB_R");
-	cmsIT8SetDataFormat (ti3, 2, "RGB_G");
-	cmsIT8SetDataFormat (ti3, 3, "RGB_B");
-	cmsIT8SetDataFormat (ti3, 4, "XYZ_X");
-	cmsIT8SetDataFormat (ti3, 5, "XYZ_Y");
-	cmsIT8SetDataFormat (ti3, 6, "XYZ_Z");
-
-	/* write to the ti3 file */
-	for (i = 0; i < array_ti1->len; i++) {
-		rgb = g_ptr_array_index (array_ti1, i);
-		xyz = g_ptr_array_index (array_ti3, i);
-		cmsIT8SetDataRowColDbl(ti3, i, 0, i + 1);
-		cmsIT8SetDataRowColDbl(ti3, i, 1, rgb->R * 100.0f);
-		cmsIT8SetDataRowColDbl(ti3, i, 2, rgb->G * 100.0f);
-		cmsIT8SetDataRowColDbl(ti3, i, 3, rgb->B * 100.0f);
-		cmsIT8SetDataRowColDbl(ti3, i, 4, xyz->X);
-		cmsIT8SetDataRowColDbl(ti3, i, 5, xyz->Y);
-		cmsIT8SetDataRowColDbl(ti3, i, 6, xyz->Z);
-	}
-
-	/* write the file */
-	g_debug ("Writing to %s", ti3_fn);
-	ret = cmsIT8SaveToFile (ti3, ti3_fn);
-	if (!ret)
-		g_assert_not_reached ();
-
-	if (ti3 != NULL)
-		cmsIT8Free (ti3);
-	return ret;
-}
-
-/**
- * ch_factory_repair_ccmx:
- **/
-static gboolean
-ch_factory_repair_ccmx (const gchar *filename, GError **error)
-{
-	gboolean ret;
-	gchar *data = NULL;
-	gchar **lines = NULL;
-	GString *str = NULL;
-	guint i;
-
-	/* load file */
-	ret = g_file_get_contents (filename, &data, NULL, error);
-	if (!ret)
+	/* check the scale is correct */
+	det = cd_mat33_determinant (calibration);
+	if (ABS (det - CH_DEVICE_DETERMINANT_AVE) > CH_DEVICE_DETERMINANT_ERROR) {
+		ret = FALSE;
+		g_set_error (error, 1, 0,
+			     "Matrix determinant out of range: %f", det);
 		goto out;
-
-	/* write header */
-	str = g_string_new ("");
-	lines = g_strsplit (data, "\n", -1);
-	for (i = 0; i < 14 && lines[i] != NULL; i++)
-		g_string_append_printf (str, "%s\n", lines[i]);
-
-	/* add capability type lines */
-	g_string_append (str, "KEYWORD \"TYPE_LCD\"\nTYPE_LCD \"YES\"\n");
-	g_string_append (str, "KEYWORD \"TYPE_LED\"\nTYPE_LED \"YES\"\n");
-	g_string_append (str, "KEYWORD \"TYPE_CRT\"\nTYPE_CRT \"YES\"\n");
-	g_string_append (str, "KEYWORD \"TYPE_PROJECTOR\"\nTYPE_PROJECTOR \"YES\"\n");
-	g_string_append (str, "KEYWORD \"TYPE_FACTORY\"\nTYPE_FACTORY \"YES\"\n");
-	g_string_append (str, "\n");
-
-	/* write footer */
-	for (i = 14; lines[i] != NULL; i++)
-		g_string_append_printf (str, "%s\n", lines[i]);
-
-	/* write file */
-	ret = g_file_set_contents (filename, str->str, -1, error);
-	if (!ret)
-		goto out;
+	}
 out:
-	if (str != NULL)
-		g_string_free (str, TRUE);
-	g_strfreev (lines);
-	g_free (data);
 	return ret;
 }
 
@@ -1171,21 +994,35 @@ out:
 static void
 ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 {
+	CdColorRGB *rgb;
+	CdColorXYZ *xyz;
+	CdIt8 *it8_device = NULL;
+	CdIt8 *it8_measured = NULL;
+	CdIt8 *it8_reference = NULL;
+	const CdMat3x3 *calibration;
 	gboolean ret;
 	gchar *filename_ccmx = NULL;
 	gchar *filename_ti3 = NULL;
 	gchar *local_spectral_reference;
-	gchar *standard_error = NULL;
-	gchar *standard_output = NULL;
 	GError *error = NULL;
-	gint exit_status;
-	GPtrArray *argv = NULL;
+	GFile *file_device = NULL;
+	GFile *file_measured = NULL;
+	GFile *file_reference = NULL;
 	GPtrArray *results_tmp;
 	guint32 serial_number = 0;
+	guint i;
 
 	/* get the ti3 file */
 	local_spectral_reference = g_settings_get_string (priv->settings,
 							  "local-spectral-reference");
+	it8_reference = cd_it8_new ();
+	file_reference = g_file_new_for_path (local_spectral_reference);
+	ret = cd_it8_load_from_file (it8_reference, file_reference, &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_error_free (error);
+		goto out;
+	}
 
 	/* get the serial number for the filename */
 	ch_device_queue_get_serial_number (priv->device_queue,
@@ -1211,9 +1048,19 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	/* save to file */
 	results_tmp = g_hash_table_lookup (priv->results,
 					   g_usb_device_get_platform_id (device));
-	ret = ch_factory_save_to_file (filename_ti3,
-				       priv->samples_ti1,
-				       results_tmp);
+
+	/* backup to a ti3 file */
+	it8_measured = cd_it8_new_with_kind (CD_IT8_KIND_TI3);
+	cd_it8_set_originator (it8_measured, "ColorHug Factory");
+	cd_it8_set_instrument (it8_measured, "Hughski ColorHug");
+	for (i = 0; i < priv->samples_ti1->len; i++) {
+		rgb = g_ptr_array_index (priv->samples_ti1, i);
+		xyz = g_ptr_array_index (results_tmp, i);
+		cd_it8_add_data (it8_measured, rgb, xyz);
+	}
+	g_debug ("backing up to %s", filename_ti3);
+	file_measured = g_file_new_for_path (filename_ti3);
+	ret = cd_it8_save_to_file (it8_measured, file_measured, &error);
 	if (!ret) {
 		ch_factory_device_is_shit (priv, device, "save");
 		g_warning ("failed to save to file: %s", "save");
@@ -1222,57 +1069,45 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	}
 
 	/* create ccmx file */
-	argv = g_ptr_array_new_with_free_func (g_free);
-	g_ptr_array_add (argv, g_strdup ("/usr/bin/ccxxmake"));
-	g_ptr_array_add (argv, g_strdup ("-TLCD"));
-	g_ptr_array_add (argv, g_strdup ("-TLCD"));
-	g_ptr_array_add (argv, g_strdup ("-IFactory Calibration"));
-	g_ptr_array_add (argv, g_strdup ("-DFactory Calibration"));
-	g_ptr_array_add (argv, g_strdup_printf ("-f%s/%s,%s",
-						priv->local_calibration_uri,
-						local_spectral_reference,
-						filename_ti3));
-	g_ptr_array_add (argv, g_strdup (filename_ccmx));
-	g_ptr_array_add (argv, NULL);
-
-	/* spawn sync process */
-	ret = g_spawn_sync (NULL,
-			    (gchar **) argv->pdata,
-			    NULL, 0,
-			    NULL, NULL,
-			    &standard_output,
-			    &standard_error,
-			    &exit_status,
-			    &error);
+	it8_device = cd_it8_new_with_kind (CD_IT8_KIND_CCMX);
+	cd_it8_set_originator (it8_device, "ColorHug Factory");
+	cd_it8_set_title (it8_device, "Factory Calibration");
+	cd_it8_add_option (it8_device, "TYPE_FACTORY");
+	ret = cd_it8_utils_calculate_ccmx (it8_reference,
+					   it8_measured,
+					   it8_device,
+					   &error);
 	if (!ret) {
 		ch_factory_device_is_shit (priv, device, error->message);
-		g_warning ("failed to spawn: %s", error->message);
+		g_warning ("failed to generate: %s", error->message);
 		g_error_free (error);
 		goto out;
 	}
-	g_debug ("stdout=%s, stderr=%s", standard_output, standard_error);
-	if (exit_status != 0) {
-		ch_factory_device_is_shit (priv, device, "no ccmx");
-		g_warning ("***\n*** failed to generate %s: %s ***\n***",
-			   filename_ccmx, standard_error);
+	file_device = g_file_new_for_path (filename_ccmx);
+	ret = cd_it8_save_to_file (it8_device, file_device, &error);
+	if (!ret) {
+		ch_factory_device_is_shit (priv, device, error->message);
+		g_warning ("failed to save file: %s", error->message);
+		g_error_free (error);
 		goto out;
 	}
 
-	/* add in extra usage data */
-	ret = ch_factory_repair_ccmx (filename_ccmx, &error);
+	/* check the scale is correct */
+	calibration = cd_it8_get_matrix (it8_device);
+	ret = ch_factory_measure_check_matrix (calibration, &error);
 	if (!ret) {
 		ch_factory_device_is_shit (priv, device, error->message);
-		g_debug ("failed to repair ccmx: %s",
-			 error->message);
+		g_warning ("%s", error->message);
 		g_error_free (error);
 		goto out;
 	}
 
 	/* save ccmx to slot 0 */
+	g_debug ("writing %s to device", filename_ccmx);
 	ret = ch_device_queue_set_calibration_ccmx (priv->device_queue,
 						    device,
 						    0,
-						    filename_ccmx,
+						    it8_device,
 						    &error);
 	if (!ret) {
 		ch_factory_device_is_shit (priv, device, error->message);
@@ -1306,8 +1141,18 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	/* success */
 	ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_CALIBRATED);
 out:
-	if (argv != NULL)
-		g_ptr_array_unref (argv);
+	if (file_reference != NULL)
+		g_object_unref (file_reference);
+	if (file_measured != NULL)
+		g_object_unref (file_measured);
+	if (file_device != NULL)
+		g_object_unref (file_device);
+	if (it8_reference != NULL)
+		g_object_unref (it8_reference);
+	if (it8_measured != NULL)
+		g_object_unref (it8_measured);
+	if (it8_device != NULL)
+		g_object_unref (it8_device);
 	g_free (filename_ccmx);
 	g_free (filename_ti3);
 	g_free (local_spectral_reference);
