@@ -959,10 +959,9 @@ ch_factory_measure_cb (ChFactoryPrivate *priv)
 
 		xyz = cd_color_xyz_new ();
 		g_object_set_data (G_OBJECT (device), "ChFactory::buffer", xyz);
-		ch_device_queue_take_readings_xyz (priv->device_queue,
-						   device,
-						   0,
-						   xyz);
+		ch_device_queue_take_readings (priv->device_queue,
+					       device,
+					       (CdColorRGB *) xyz);
 	}
 
 	/* run this sample */
@@ -1341,7 +1340,6 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
 	CdColorRGB *rgb_ambient = NULL;
 	CdColorRGB rgb_tmp;
-	CdMat3x3 calibration;
 	gboolean ret;
 	gchar *error_tmp;
 	gchar *filename;
@@ -1375,7 +1373,6 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	rgb_tmp.R = 0.00005f;
 	rgb_tmp.G = 0.00005f;
 	rgb_tmp.B = 0.00005f;
-	cd_mat33_set_identity (&calibration);
 	calibration_map[0] = 0;
 	calibration_map[1] = 0;
 	calibration_map[2] = 0;
@@ -1406,12 +1403,6 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		ch_device_queue_set_integral_time (priv->device_queue,
 						   device,
 						   CH_INTEGRAL_TIME_VALUE_MAX);
-		ch_device_queue_set_calibration (priv->device_queue,
-						 device,
-						 0,
-						 &calibration,
-						 CH_CALIBRATION_TYPE_ALL,
-						 "Unity Profile");
 		ch_device_queue_set_calibration_map (priv->device_queue,
 						     device,
 						     calibration_map);
