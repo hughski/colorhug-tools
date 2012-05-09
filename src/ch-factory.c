@@ -28,11 +28,11 @@
 #include <math.h>
 #include <gusb.h>
 #include <stdlib.h>
+#include <colord-gtk.h>
 #include <colorhug.h>
 #include <canberra-gtk.h>
 
 #include "ch-flash-md.h"
-#include "ch-sample-window.h"
 #include "ch-database.h"
 
 #define CH_FACTORY_AMBIENT_MIN		0.00001
@@ -951,8 +951,8 @@ ch_factory_measure (ChFactoryPrivate *priv)
 	/* get samples */
 	rgb_tmp = g_ptr_array_index (priv->samples_ti1, priv->samples_ti1_idx);
 
-	ch_sample_window_set_color (CH_SAMPLE_WINDOW (priv->sample_window), rgb_tmp);
-	ch_sample_window_set_fraction (CH_SAMPLE_WINDOW (priv->sample_window),
+	cd_sample_window_set_color (CD_SAMPLE_WINDOW (priv->sample_window), rgb_tmp);
+	cd_sample_window_set_fraction (CD_SAMPLE_WINDOW (priv->sample_window),
 					 (gdouble) priv->samples_ti1_idx / (gdouble) priv->samples_ti1->len);
 
 	/* update global percentage */
@@ -1310,7 +1310,7 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* setup the measure window */
 //	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1180, 1850);
 	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1850, 1180);
-	ch_sample_window_set_fraction (CH_SAMPLE_WINDOW (priv->sample_window), 0);
+	cd_sample_window_set_fraction (CD_SAMPLE_WINDOW (priv->sample_window), 0);
 	gtk_window_stick (priv->sample_window);
 	gtk_window_present (priv->sample_window);
 	gtk_window_move (priv->sample_window, 10, 10);
@@ -1739,7 +1739,7 @@ main (int argc, char **argv)
 	priv = g_new0 (ChFactoryPrivate, 1);
 	priv->database = ch_database_new ();
 	priv->usb_ctx = g_usb_context_new (NULL);
-	priv->sample_window = ch_sample_window_new ();
+	priv->sample_window = cd_sample_window_new ();
 	priv->device_queue = ch_device_queue_new ();
 	priv->settings = g_settings_new ("com.hughski.colorhug-tools");
 	priv->local_calibration_uri = g_settings_get_string (priv->settings,

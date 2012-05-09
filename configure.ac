@@ -96,7 +96,7 @@ dnl ---------------------------------------------------------------------------
 dnl - Check library dependencies
 dnl ---------------------------------------------------------------------------
 PKG_CHECK_MODULES(GTK, gtk+-3.0 >= 2.91.0)
-PKG_CHECK_MODULES(COLORD, colord >= 0.1.20)
+PKG_CHECK_MODULES(COLORD, colord-gtk >= 0.1.20)
 PKG_CHECK_MODULES(COLORHUG, colorhug)
 PKG_CHECK_MODULES(SQLITE, sqlite3)
 PKG_CHECK_MODULES(CANBERRA, libcanberra-gtk3 >= 0.10)

@@ -1,5 +1,6 @@
 INCLUDES =						\
 	$(GTK_CFLAGS)					\
+	$(COLORD_CFLAGS)				\
 	$(COLORHUG_CFLAGS)				\
 	$(SQLITE_CFLAGS)				\
 	$(CANBERRA_CFLAGS)				\
@@ -13,8 +14,6 @@ bin_PROGRAMS =						\
 	colorhug-shipping
 
 colorhug_factory_SOURCES =				\
-	ch-sample-window.c				\
-	ch-sample-window.h				\
 	ch-flash-md.c					\
 	ch-flash-md.h					\
 	ch-database.c					\
@@ -25,6 +24,7 @@ colorhug_factory_SOURCES =				\
 
 colorhug_factory_LDADD =				\
 	$(GTK_LIBS)					\
+	$(COLORD_LIBS)					\
 	$(COLORHUG_LIBS)				\
 	$(SQLITE_LIBS)					\
 	$(CANBERRA_LIBS)				\
