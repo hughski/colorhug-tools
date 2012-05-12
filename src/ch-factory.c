@@ -822,7 +822,6 @@ ch_factory_measure_done_cb (GObject *source,
 	CdColorXYZ *xyz;
 	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
 	gboolean ret;
-	gchar *email_body = NULL;
 	GError *error = NULL;
 	GPtrArray *devices = NULL;
 	GPtrArray *results_tmp;
@@ -873,24 +872,10 @@ ch_factory_measure_done_cb (GObject *source,
 			 CA_PROP_APPLICATION_NAME, _("ColorHug Factory"),
 			 CA_PROP_EVENT_DESCRIPTION, _("Calibration Completed"), NULL);
 
-	/* email me as I'm sitting downstairs */
-	email_body = g_strdup_printf ("%i devices ready!", devices->len);
-	ret = ch_shipping_send_email ("hughsient@gmail.com",
-				      "info@hughski.com",
-				      "Calibration complete",
-				      email_body,
-				      &error);
-	if (!ret) {
-		g_warning ("Failed to get send email: %s", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
 	/* hide the sample window */
 	priv->in_calibration = FALSE;
 	gtk_widget_hide (GTK_WIDGET (priv->sample_window));
 out:
-	g_free (email_body);
 	if (devices != NULL)
 		g_ptr_array_unref (devices);
 }
