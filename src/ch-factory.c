@@ -45,6 +45,7 @@
 #define CH_DEVICE_ICON_MISSING		"edit-delete"
 
 typedef struct {
+	CdClient	*client;
 	ChDeviceQueue	*device_queue;
 	gboolean	 in_calibration;
 	gchar		*local_calibration_uri;
@@ -1522,12 +1523,14 @@ ch_factory_treeview_add_columns (ChFactoryPrivate *priv)
 static void
 ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 {
+	CdDevice *device = NULL;
+	gboolean ret;
+	gchar *filename = NULL;
 	GError *error = NULL;
 	gint retval;
+	GtkStyleContext *context;
 	GtkWidget *main_window;
 	GtkWidget *widget;
-	gchar *filename = NULL;
-	GtkStyleContext *context;
 
 	/* get UI */
 	priv->builder = gtk_builder_new ();
@@ -1606,9 +1609,47 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 		goto out;
 	}
 
+	/* inhibit the display */
+	ret = cd_client_connect_sync (priv->client, NULL, &error);
+	if (!ret) {
+		g_warning ("failed to contact colord: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* finds the colord device which has a specific property */
+	device = cd_client_find_device_by_property_sync (priv->client,
+							 CD_DEVICE_METADATA_XRANDR_NAME,
+							 "HDMI2",
+							 NULL,
+							 &error);
+	if (device == NULL) {
+		g_warning ("no device with that property: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* inhibit the device */
+	ret = cd_device_connect_sync (device, NULL, &error);
+	if (!ret) {
+		g_warning ("failed to get properties from the device: %s",
+			   error->message);
+		g_error_free (error);
+		goto out;
+	}
+	ret = cd_device_profiling_inhibit_sync (device, NULL, &error);
+	if (!ret) {
+		g_warning ("failed to get inhibit the device: %s",
+			   error->message);
+		g_error_free (error);
+		goto out;
+	}
+
 	/* show main UI */
 	gtk_widget_show (main_window);
 out:
+	if (device != NULL)
+		g_object_unref (device);
 	g_free (filename);
 }
 
@@ -1722,6 +1763,7 @@ main (int argc, char **argv)
 	g_option_context_free (context);
 
 	priv = g_new0 (ChFactoryPrivate, 1);
+	priv->client = cd_client_new ();
 	priv->database = ch_database_new ();
 	priv->usb_ctx = g_usb_context_new (NULL);
 	priv->sample_window = cd_sample_window_new ();
@@ -1785,6 +1827,8 @@ main (int argc, char **argv)
 		g_object_unref (priv->settings);
 	if (priv->database != NULL)
 		g_object_unref (priv->database);
+	if (priv->client != NULL)
+		g_object_unref (priv->client);
 	g_ptr_array_unref (priv->samples_ti1);
 	g_hash_table_unref (priv->results);
 	g_free (priv->local_calibration_uri);
