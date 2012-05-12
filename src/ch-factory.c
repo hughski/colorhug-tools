@@ -236,6 +236,8 @@ ch_factory_set_device_error (ChFactoryPrivate *priv,
 	if (!ret)
 		return;
 	markup = g_markup_escape_text (error_message, -1);
+	if (strlen (markup) > 60)
+		markup[60] = '\0';
 	gtk_list_store_set (list_store, &iter,
 			    COLUMN_ERROR, markup,
 			    -1);
