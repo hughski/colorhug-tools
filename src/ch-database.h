@@ -96,7 +96,7 @@ gchar		*ch_database_order_get_comment	(ChDatabase	*database,
 guint32		 ch_database_device_find_oldest	(ChDatabase	*database,
 						 ChDeviceState state,
 						 GError		**error);
-guint32		 ch_database_order_get_device_id (ChDatabase	*database,
+GArray		*ch_database_order_get_device_ids (ChDatabase	*database,
 						 guint32	 order_id,
 						 GError		**error);
 guint		 ch_database_device_get_number	(ChDatabase	*database,

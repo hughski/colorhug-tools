@@ -38,8 +38,6 @@ colorhug_shipping_SOURCES =				\
 	ch-cell-renderer-date.h				\
 	ch-cell-renderer-postage.c			\
 	ch-cell-renderer-postage.h			\
-	ch-cell-renderer-uint32.c			\
-	ch-cell-renderer-uint32.h			\
 	ch-cell-renderer-order-status.c			\
 	ch-cell-renderer-order-status.h			\
 	ch-shipping-common.c				\

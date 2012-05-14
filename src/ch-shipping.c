@@ -32,7 +32,6 @@
 
 #include "ch-cell-renderer-date.h"
 #include "ch-cell-renderer-postage.h"
-#include "ch-cell-renderer-uint32.h"
 #include "ch-cell-renderer-order-status.h"
 #include "ch-database.h"
 #include "ch-shipping-common.h"
@@ -57,7 +56,7 @@ enum {
 	COLUMN_TRACKING,
 	COLUMN_SHIPPED,
 	COLUMN_POSTAGE,
-	COLUMN_DEVICE_ID,
+	COLUMN_DEVICE_IDS,
 	COLUMN_COMMENT,
 	COLUMN_ORDER_STATE,
 	COLUMN_LAST
@@ -187,6 +186,42 @@ out:
 }
 
 /**
+ * ch_shipping_order_get_device_ids:
+ **/
+static gchar *
+ch_shipping_order_get_device_ids (ChFactoryPrivate *priv,
+				  guint32 order_id,
+				  GError **error)
+{
+	GArray *array;
+	gchar *tmp = NULL;
+	GString *string;
+	guint32 device_id;
+	guint i;
+
+	/* get device IDs */
+	array = ch_database_order_get_device_ids (priv->database,
+						  order_id,
+						  error);
+	if (array == NULL)
+		goto out;
+
+	/* make into a string */
+	string = g_string_new ("");
+	for (i = 0; i < array->len; i++) {
+		device_id = g_array_index (array, guint32, i);
+		g_string_append_printf (string, "%03i,", device_id);
+	}
+	if (string->len > 0)
+		g_string_set_size (string, string->len - 1);
+	tmp = g_string_free (string, FALSE);
+out:
+	if (array != NULL)
+		g_array_unref (array);
+	return tmp;
+}
+
+/**
  * ch_shipping_refresh_orders:
  **/
 static void
@@ -199,7 +234,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 	GPtrArray *array;
 	GtkListStore *list_store;
 	GtkTreeIter iter;
-	guint32 device_id;
+	gchar *device_ids = NULL;
 	guint i;
 
 	list_store = GTK_LIST_STORE (gtk_builder_get_object (priv->builder, "liststore_orders"));
@@ -215,13 +250,12 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 		if (!ret)
 			gtk_list_store_append (list_store, &iter);
 
-		/* get the device ID if we can */
-		device_id = ch_database_order_get_device_id (priv->database,
-							     order->order_id,
-							     NULL);
-		if (device_id == G_MAXUINT32)
-			device_id = 0;
-
+		/* get the device IDs if we can */
+		device_ids = ch_shipping_order_get_device_ids (priv,
+							       order->order_id,
+							       NULL);
+		if (device_ids == NULL)
+			device_ids = g_strdup ("-");
 		name_tmp = g_markup_escape_text (order->name, -1);
 		gtk_list_store_set (list_store, &iter,
 				    COLUMN_ORDER_ID, order->order_id,
@@ -233,8 +267,9 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 				    COLUMN_POSTAGE, order->postage,
 				    COLUMN_COMMENT, order->comment,
 				    COLUMN_ORDER_STATE, order->state,
-				    COLUMN_DEVICE_ID, device_id,
+				    COLUMN_DEVICE_IDS, device_ids,
 				    -1);
+		g_free (device_ids);
 		g_free (name_tmp);
 	}
 
@@ -256,6 +291,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gboolean ret;
 	gchar *address = NULL;
 	gchar **address_split = NULL;
+	gchar *device_ids = NULL;
 	GString *address_escaped = NULL;
 	gchar *name = NULL;
 	GError *error = NULL;
@@ -263,7 +299,6 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GtkTreeModel *model;
 	GtkTreeSelection *selection;
 	GtkTreeView *treeview;
-	guint32 device_id;
 	guint32 order_id;
 	guint i;
 
@@ -278,7 +313,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			    COLUMN_NAME, &name,
 			    COLUMN_ADDRESS, &address,
 			    COLUMN_POSTAGE, &postage,
-			    COLUMN_DEVICE_ID, &device_id,
+			    COLUMN_DEVICE_IDS, &device_ids,
 			    -1);
 
 	address_split = g_strsplit (address, "|", -1);
@@ -324,10 +359,10 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* add to XML string in the format:
 	 * name,addr1,addr2,addr3,addr4,addr5,serial,shipping,cost */
-	g_string_append_printf (priv->output_csv, "\"%s\",%s,%04i,%s,%i,%s\n",
+	g_string_append_printf (priv->output_csv, "\"%s\",%s,\"%s\",%s,%i,%s\n",
 				name,
 				address_escaped->str,
-				device_id,
+				device_ids,
 				ch_shipping_postage_to_string (postage),
 				0,
 				postage_type);
@@ -337,6 +372,7 @@ out:
 	if (address_escaped != NULL)
 		g_string_free (address_escaped, TRUE);
 	g_strfreev (address_split);
+	g_free (device_ids);
 	g_free (address);
 	g_free (name);
 }
@@ -490,6 +526,8 @@ ch_shipping_order_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gtk_entry_set_text (GTK_ENTRY (widget), "");
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr5"));
 	gtk_entry_set_text (GTK_ENTRY (widget), "");
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_order_devices"));
+	gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget), 1.0f);
 
 	date = g_date_time_new_now_local ();
 	switch (g_date_time_get_day_of_week (date)) {
@@ -965,6 +1003,12 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GString *str = NULL;
 	guint32 device_id;
 	guint32 order_id;
+	guint number_of_devices;
+	guint i;
+
+	/* get number of devices */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_order_devices"));
+	number_of_devices = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_paypal"));
 	name = gtk_entry_get_text (GTK_ENTRY (widget));
@@ -1013,16 +1057,6 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
 		postage = CH_SHIPPING_POSTAGE_WORLD_SIGNED;
 skip:
-	/* get the oldest device we've got calibrated */
-	device_id = ch_database_device_find_oldest (priv->database,
-						    CH_DEVICE_STATE_CALIBRATED,
-						    &error);
-	if (device_id == G_MAXUINT32) {
-		ch_shipping_error_dialog (priv, "Failed to get device", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
 	/* add to database */
 	ch_shipping_database_timer_reset (priv);
 	order_id = ch_database_add_order (priv->database, name, addr->str, email, postage, &error);
@@ -1032,31 +1066,63 @@ skip:
 		goto out;
 	}
 
-	/* add this device to the order */
-	ret = ch_database_device_set_order_id (priv->database,
-					       device_id,
-					       order_id,
-					       &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to assign device to order", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* mark the device as allocated */
-	ret = ch_database_device_set_state (priv->database,
-					    device_id,
-					    CH_DEVICE_STATE_ALLOCATED,
-					    &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to allocate device", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* write email */
+	/* write message body */
 	str = g_string_new ("");
-	from = g_settings_get_string (priv->settings, "invoice-sender");
+	if (number_of_devices == 1) {
+		g_string_append_printf (str, "ColorHug order %04i has been created and allocated device number ",
+					order_id);
+	} else {
+		g_string_append_printf (str, "ColorHug order %04i has been created and allocated device numbers ",
+					order_id);
+	}
+
+	/* get the oldest devices we've got calibrated */
+	for (i = 0; i < number_of_devices; i++) {
+		device_id = ch_database_device_find_oldest (priv->database,
+							    CH_DEVICE_STATE_CALIBRATED,
+							    &error);
+		if (device_id == G_MAXUINT32) {
+			ch_shipping_error_dialog (priv,
+						  "Failed to get device",
+						  error->message);
+			g_error_free (error);
+			goto out;
+		}
+
+		/* add this device to the order */
+		ret = ch_database_device_set_order_id (priv->database,
+						       device_id,
+						       order_id,
+						       &error);
+		if (!ret) {
+			ch_shipping_error_dialog (priv,
+						  "Failed to assign device to order",
+						  error->message);
+			g_error_free (error);
+			goto out;
+		}
+
+		/* mark the device as allocated */
+		ret = ch_database_device_set_state (priv->database,
+						    device_id,
+						    CH_DEVICE_STATE_ALLOCATED,
+						    &error);
+		if (!ret) {
+			ch_shipping_error_dialog (priv,
+						  "Failed to allocate device",
+						  error->message);
+			g_error_free (error);
+			goto out;
+		}
+
+		/* add the device ID */
+		g_string_append_printf (str, "%05i ",
+					device_id);
+	}
+	if (str->len > 0) {
+		g_string_set_size (str, str->len - 1);
+		g_string_append (str, ".\n");
+	}
 
 	/* get the day */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_monday"));
@@ -1074,18 +1140,24 @@ skip:
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_friday"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
 		sending_day = "Friday";
-
-	g_string_append_printf (str, "ColorHug order %i has been created and allocated device number %i.\n",
-				order_id,
-				device_id);
 	g_string_append_printf (str, "The invoice will be printed and the package will be sent on %s.\n",
 				sending_day);
+
+	/* print when we will send the item */
 	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
 	    postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
 	    postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED) {
-		g_string_append (str, "Once the device has been posted we will email again with the tracking number.\n");
+		if (number_of_devices == 1) {
+			g_string_append (str, "Once the device has been posted we will email again with the tracking number.\n");
+		} else {
+			g_string_append (str, "Once the devices have been posted we will email again with the tracking number.\n");
+		}
 	} else {
-		g_string_append (str, "Once the device has been posted a confirmation email will be sent.\n");
+		if (number_of_devices == 1) {
+			g_string_append (str, "Once the device has been posted a confirmation email will be sent.\n");
+		} else {
+			g_string_append (str, "Once the devices have been posted a confirmation email will be sent.\n");
+		}
 	}
 	g_string_append (str, "\n");
 	g_string_append (str, "Thanks again for your support for this new and exciting project.\n");
@@ -1093,6 +1165,7 @@ skip:
 	g_string_append (str, "Ania Hughes\n");
 
 	/* actually send the email */
+	from = g_settings_get_string (priv->settings, "invoice-sender");
 	ret = ch_shipping_send_email (from,
 				      email,
 				      "Your ColorHug order has been received",
@@ -1128,6 +1201,7 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	const gchar *tracking_number = NULL;
 	gboolean ret;
 	gchar *cmd = NULL;
+	gchar *device_ids = NULL;
 	gchar *email = NULL;
 	gchar *from = NULL;
 	GError *error = NULL;
@@ -1137,7 +1211,6 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GtkTreeSelection *selection;
 	GtkTreeView *treeview;
 	guint32 order_id;
-	guint32 device_id;
 
 	/* get the order id of the selected item */
 	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
@@ -1149,7 +1222,7 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			    COLUMN_ORDER_ID, &order_id,
 			    COLUMN_POSTAGE, &postage,
 			    COLUMN_EMAIL, &email,
-			    COLUMN_DEVICE_ID, &device_id,
+			    COLUMN_DEVICE_IDS, &device_ids,
 			    -1);
 
 	/* get tracking number */
@@ -1160,9 +1233,9 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	str = g_string_new ("");
 	from = g_settings_get_string (priv->settings, "invoice-sender");
 	if (tracking_number[0] == '\0' || g_strcmp0 (tracking_number, "n/a") == 0) {
-		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%04i has been dispatched.\n", device_id);
+		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched.\n", device_ids);
 	} else {
-		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%04i has been dispatched with tracking ID: %s\n", device_id, tracking_number);
+		g_string_append_printf (str, "I'm pleased to tell you ColorHugs %s have been dispatched with tracking ID: %s\n", device_ids, tracking_number);
 		g_string_append (str, "You will be able to track this item here: http://track2.royalmail.com/portal/rm/trackresults\n");
 	}
 	g_string_append (str, "\n");
@@ -1221,6 +1294,7 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* refresh state */
 	ch_shipping_refresh_orders (priv);
 out:
+	g_free (device_ids);
 	g_free (from);
 	g_free (email);
 	g_free (cmd);
@@ -1381,12 +1455,12 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 
 	/* column for device_id */
 	column = gtk_tree_view_column_new ();
-	renderer = ch_cell_renderer_uint32_new ();
+	renderer = gtk_cell_renderer_text_new ();
 	gtk_tree_view_column_pack_start (column, renderer, FALSE);
-	gtk_tree_view_column_add_attribute (column, renderer, "value", COLUMN_DEVICE_ID);
-	gtk_tree_view_column_set_title (column, "Device");
+	gtk_tree_view_column_add_attribute (column, renderer, "markup", COLUMN_DEVICE_IDS);
+	gtk_tree_view_column_set_title (column, "Devices");
 	gtk_tree_view_append_column (treeview, column);
-	gtk_tree_view_column_set_sort_column_id (column, COLUMN_DEVICE_ID);
+	gtk_tree_view_column_set_sort_column_id (column, COLUMN_DEVICE_IDS);
 
 	/* column for comment */
 	column = gtk_tree_view_column_new ();
@@ -1646,7 +1720,7 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	/* sorted */
 	sortable = GTK_TREE_SORTABLE (gtk_builder_get_object (priv->builder, "liststore_orders"));
 	gtk_tree_sortable_set_sort_column_id (sortable,
-					      COLUMN_DEVICE_ID, GTK_SORT_DESCENDING);
+					      COLUMN_DEVICE_IDS, GTK_SORT_DESCENDING);
 
 	/* buttons */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_close"));

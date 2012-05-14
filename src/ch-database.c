@@ -621,30 +621,33 @@ out:
 }
 
 /**
- * ch_database_order_get_device_id_cb:
+ * ch_database_order_get_device_ids_cb:
  **/
 static gint
-ch_database_order_get_device_id_cb (void *data, gint argc, gchar **argv, gchar **col_name)
+ch_database_order_get_device_ids_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
-	guint32 *id = (guint32 *) data;
-	*id = atoi (argv[0]);
+	GArray *array = (GArray *) data;
+	guint32 tmp;
+	tmp = atoi (argv[0]);
+	g_array_append_val (array, tmp);
 	return 0;
 }
 
 /**
- * ch_database_order_get_device_id:
+ * ch_database_order_get_device_ids:
  **/
-guint32
-ch_database_order_get_device_id (ChDatabase *database,
+GArray *
+ch_database_order_get_device_ids (ChDatabase *database,
 				 guint32 order_id,
 				 GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;
+	GArray *array = NULL;
+	GArray *array_tmp = NULL;
 	gboolean ret;
 	gchar *error_msg = NULL;
 	gchar *statement = NULL;
 	gint rc;
-	guint32 id = G_MAXUINT32;
 
 	/* ensure db is loaded */
 	ret = ch_database_load (database, error);
@@ -652,13 +655,14 @@ ch_database_order_get_device_id (ChDatabase *database,
 		goto out;
 
 	/* find */
+	array_tmp = g_array_new (FALSE, FALSE, sizeof (guint32));
 	statement = g_strdup_printf ("SELECT device_id "
 				     "FROM devices WHERE order_id = '%i' "
-				     "ORDER BY device_id DESC LIMIT 1", order_id);
+				     "ORDER BY device_id DESC", order_id);
 	rc = sqlite3_exec (priv->db,
 			   statement,
-			   ch_database_order_get_device_id_cb,
-			   &id,
+			   ch_database_order_get_device_ids_cb,
+			   array_tmp,
 			   &error_msg);
 	if (rc != SQLITE_OK) {
 		g_set_error (error, 1, 0,
@@ -666,14 +670,17 @@ ch_database_order_get_device_id (ChDatabase *database,
 			     sqlite3_errmsg (priv->db));
 		goto out;
 	}
-	if (id == G_MAXUINT32) {
+	if (array_tmp->len == 0) {
 		g_set_error (error, 1, 0,
 			     "No devices for order %i", order_id);
 		goto out;
 	}
+	array = g_array_ref (array_tmp);
 out:
+	if (array_tmp != NULL)
+		g_array_unref (array_tmp);
 	g_free (statement);
-	return id;
+	return array;
 }
 
 /**
