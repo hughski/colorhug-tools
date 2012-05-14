@@ -1520,6 +1520,70 @@ ch_factory_treeview_add_columns (ChFactoryPrivate *priv)
 }
 
 /**
+ * ch_factory_select_all_cb:
+ **/
+static void
+ch_factory_select_all_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
+{
+	gboolean ret;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+
+	model = GTK_TREE_MODEL (gtk_builder_get_object (priv->builder, "liststore_devices"));
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+				    COLUMN_ENABLED, TRUE,
+				    -1);
+		ret = gtk_tree_model_iter_next (model, &iter);
+	}
+}
+
+/**
+ * ch_factory_select_none_cb:
+ **/
+static void
+ch_factory_select_none_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
+{
+	gboolean ret;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+
+	model = GTK_TREE_MODEL (gtk_builder_get_object (priv->builder, "liststore_devices"));
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+				    COLUMN_ENABLED, FALSE,
+				    -1);
+		ret = gtk_tree_model_iter_next (model, &iter);
+	}
+}
+
+/**
+ * ch_factory_select_invert_cb:
+ **/
+static void
+ch_factory_select_invert_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
+{
+	gboolean enabled;
+	gboolean ret;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+
+	model = GTK_TREE_MODEL (gtk_builder_get_object (priv->builder, "liststore_devices"));
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_tree_model_get (model, &iter,
+				    COLUMN_ENABLED, &enabled,
+				    -1);
+		gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+				    COLUMN_ENABLED, !enabled,
+				    -1);
+		ret = gtk_tree_model_iter_next (model, &iter);
+	}
+}
+
+/**
  * ch_factory_startup_cb:
  **/
 static void
@@ -1579,6 +1643,15 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_check_leds"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_factory_check_leds_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_select_all"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_factory_select_all_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_select_none"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_factory_select_none_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_select_invert"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_factory_select_invert_cb), priv);
 
 	/* update global percentage */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
