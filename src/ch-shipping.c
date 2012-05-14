@@ -470,6 +470,8 @@ out:
 static void
 ch_shipping_order_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
+	GDateTime *date;
+
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_order_add"));
 	gtk_widget_set_sensitive (widget, FALSE);
 
@@ -489,9 +491,34 @@ ch_shipping_order_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr5"));
 	gtk_entry_set_text (GTK_ENTRY (widget), "");
 
+	date = g_date_time_new_now_local ();
+	switch (g_date_time_get_day_of_week (date)) {
+	case G_DATE_MONDAY:
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_tuesday"));
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+		break;
+	case G_DATE_TUESDAY:
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_wednesday"));
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+		break;
+	case G_DATE_WEDNESDAY:
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_thursday"));
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+		break;
+	case G_DATE_THURSDAY:
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_friday"));
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+		break;
+	default:
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_monday"));
+		gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+		break;
+	}
+
 	/* show the modal window */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_order"));
 	gtk_widget_show (widget);
+	g_date_time_unref (date);
 }
 
 /**
@@ -1030,24 +1057,24 @@ skip:
 	/* write email */
 	str = g_string_new ("");
 	from = g_settings_get_string (priv->settings, "invoice-sender");
-	date = g_date_time_new_now_local ();
-	switch (g_date_time_get_day_of_week (date)) {
-	case G_DATE_MONDAY:
-		sending_day = "Tuesday";
-		break;
-	case G_DATE_TUESDAY:
-		sending_day = "Wednesday";
-		break;
-	case G_DATE_WEDNESDAY:
-		sending_day = "Thursday";
-		break;
-	case G_DATE_THURSDAY:
-		sending_day = "Friday";
-		break;
-	default:
+
+	/* get the day */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_monday"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
 		sending_day = "Monday";
-		break;
-	}
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_tuesday"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		sending_day = "Tuesday";
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_wednesday"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		sending_day = "Wednesday";
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_thursday"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		sending_day = "Thursday";
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_friday"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		sending_day = "Friday";
+
 	g_string_append_printf (str, "ColorHug order %i has been created and allocated device number %i.\n",
 				order_id,
 				device_id);
