@@ -194,6 +194,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 {
 	ChDatabaseOrder *order;
 	gboolean ret;
+	gchar *name_tmp;
 	GError *error = NULL;
 	GPtrArray *array;
 	GtkListStore *list_store;
@@ -221,9 +222,10 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 		if (device_id == G_MAXUINT32)
 			device_id = 0;
 
+		name_tmp = g_markup_escape_text (order->name, -1);
 		gtk_list_store_set (list_store, &iter,
 				    COLUMN_ORDER_ID, order->order_id,
-				    COLUMN_NAME, order->name,
+				    COLUMN_NAME, name_tmp,
 				    COLUMN_EMAIL, order->email,
 				    COLUMN_ADDRESS, order->address,
 				    COLUMN_TRACKING, order->tracking_number,
@@ -233,6 +235,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 				    COLUMN_ORDER_STATE, order->state,
 				    COLUMN_DEVICE_ID, device_id,
 				    -1);
+		g_free (name_tmp);
 	}
 
 	/* and also status */
