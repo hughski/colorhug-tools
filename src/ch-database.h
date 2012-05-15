@@ -44,7 +44,6 @@ struct _ChDatabase
 
 struct _ChDatabaseClass
 {
-	void		(*changed)	(ChDatabase		*database);
 	GObjectClass			 parent_class;
 };
 
