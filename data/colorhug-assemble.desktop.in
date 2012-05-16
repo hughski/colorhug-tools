@@ -1,0 +1,10 @@
+[Desktop Entry]
+_Name=ColorHug Assembly Test
+_Comment=Test the ColorHug device
+Icon=colorimeter-colorhug
+Exec=colorhug-assemble
+Terminal=false
+Type=Application
+Categories=GNOME;GTK;System;
+StartupNotify=true
+NoDisplay=false

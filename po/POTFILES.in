@@ -1,9 +1,12 @@
 [encoding: UTF-8]
+[type: gettext/glade]data/ch-assemble.ui
 [type: gettext/glade]data/ch-factory.ui
 [type: gettext/glade]data/ch-shipping.ui
 data/ch-shipping.ui
+data/colorhug-assemble.desktop.in
 data/colorhug-factory.desktop.in
 data/colorhug-shipping.desktop.in
 data/com.hughski.colorhug-tools.gschema.xml.in
+src/ch-assemble.c
 src/ch-factory.c
 src/ch-shipping.c

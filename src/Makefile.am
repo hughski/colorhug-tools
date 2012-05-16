@@ -10,8 +10,21 @@ INCLUDES =						\
 	-DLOCALEDIR=\""$(localedir)"\"
 
 bin_PROGRAMS =						\
+	colorhug-assemble				\
 	colorhug-factory				\
 	colorhug-shipping
+
+colorhug_assemble_SOURCES =				\
+	ch-assemble.c
+
+colorhug_assemble_LDADD =				\
+	$(GTK_LIBS)					\
+	$(COLORD_LIBS)					\
+	$(COLORHUG_LIBS)				\
+	-lm
+
+colorhug_assemble_CFLAGS =				\
+	$(WARNINGFLAGS_C)
 
 colorhug_factory_SOURCES =				\
 	ch-flash-md.c					\
