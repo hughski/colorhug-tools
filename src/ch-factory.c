@@ -1736,8 +1736,7 @@ ch_factory_device_added_cb (GUsbDeviceList *list,
 			    GUsbDevice *device,
 			    ChFactoryPrivate *priv)
 {
-	if (g_usb_device_get_vid (device) == CH_USB_VID &&
-	    g_usb_device_get_pid (device) == CH_USB_PID) {
+	if (ch_device_is_colorhug (device)) {
 		g_debug ("Added ColorHug: %s",
 			 g_usb_device_get_platform_id (device));
 		ch_factory_got_device (priv, device);
@@ -1752,8 +1751,7 @@ ch_factory_device_removed_cb (GUsbDeviceList *list,
 			    GUsbDevice *device,
 			    ChFactoryPrivate *priv)
 {
-	if (g_usb_device_get_vid (device) == CH_USB_VID &&
-	    g_usb_device_get_pid (device) == CH_USB_PID) {
+	if (ch_device_is_colorhug (device)) {
 		g_debug ("Removed ColorHug: %s",
 			 g_usb_device_get_platform_id (device));
 		ch_factory_removed_device (priv, device);
