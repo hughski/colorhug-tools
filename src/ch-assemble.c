@@ -80,10 +80,10 @@ ch_assemble_set_color (ChAssemblePrivate *priv,
 	gtk_window_get_size (GTK_WINDOW (widget), &width, &height);
 	width -= 100;
 	height -= 100;
-	if (width < 1000)
-		width = 1000;
-	if (height < 500)
-		height = 500;
+	if (width < 950)
+		width = 950;
+	if (height < 460)
+		height = 460;
 
 	/* if no pixbuf, create it */
 	g_debug ("setting RGB: %f, %f, %f", red, green, blue);
