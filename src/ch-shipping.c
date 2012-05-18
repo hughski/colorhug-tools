@@ -32,6 +32,7 @@
 
 #include "ch-cell-renderer-date.h"
 #include "ch-cell-renderer-postage.h"
+#include "ch-cell-renderer-uint32.h"
 #include "ch-cell-renderer-order-status.h"
 #include "ch-database.h"
 #include "ch-shipping-common.h"
@@ -225,6 +226,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 	GtkTreeIter iter;
 	gchar *device_ids = NULL;
 	guint i;
+	guint order_id_next = 0;
 
 	list_store = GTK_LIST_STORE (gtk_builder_get_object (priv->builder, "liststore_orders"));
 	array = ch_database_get_all_orders (priv->database, &error);
@@ -235,6 +237,14 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 	}
 	for (i = 0; i < array->len; i++) {
 		order = g_ptr_array_index (array, i);
+
+		/* verify we've not skipped any */
+		if (order_id_next == 0)
+			order_id_next = order->order_id;
+		if (order->order_id != order_id_next)
+			g_warning ("missing order %i", order_id_next - 1);
+		order_id_next = order->order_id - 1;
+
 		ret = ch_shipping_find_by_id (GTK_TREE_MODEL (list_store), &iter, order->order_id);
 		if (!ret)
 			gtk_list_store_append (list_store, &iter);
@@ -1394,6 +1404,15 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
 	g_signal_connect (treeview, "row-activated",
 			  G_CALLBACK (ch_shipping_row_activated_cb), priv);
+
+	/* column for order_id */
+	column = gtk_tree_view_column_new ();
+	renderer = ch_cell_renderer_uint32_new ();
+	gtk_tree_view_column_pack_start (column, renderer, FALSE);
+	gtk_tree_view_column_add_attribute (column, renderer, "value", COLUMN_ORDER_ID);
+	gtk_tree_view_column_set_title (column, "Order");
+	gtk_tree_view_append_column (treeview, column);
+	gtk_tree_view_column_set_sort_column_id (column, COLUMN_ORDER_ID);
 
 	/* column for images */
 	column = gtk_tree_view_column_new ();
