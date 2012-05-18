@@ -1220,7 +1220,7 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	if (tracking_number[0] == '\0' || g_strcmp0 (tracking_number, "n/a") == 0) {
 		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched.\n", device_ids);
 	} else {
-		g_string_append_printf (str, "I'm pleased to tell you ColorHugs %s have been dispatched with tracking ID: %s\n", device_ids, tracking_number);
+		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched with tracking ID: %s\n", device_ids, tracking_number);
 		g_string_append (str, "You will be able to track this item here: http://track2.royalmail.com/portal/rm/trackresults\n");
 	}
 	g_string_append (str, "\n");
