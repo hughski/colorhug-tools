@@ -1462,7 +1462,7 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 	gtk_tree_view_column_add_attribute (column, renderer, "markup", COLUMN_DEVICE_IDS);
 	gtk_tree_view_column_set_title (column, "Devices");
 	gtk_tree_view_append_column (treeview, column);
-	gtk_tree_view_column_set_sort_column_id (column, COLUMN_DEVICE_IDS);
+	gtk_tree_view_column_set_sort_column_id (column, COLUMN_ORDER_ID);
 
 	/* column for comment */
 	column = gtk_tree_view_column_new ();
