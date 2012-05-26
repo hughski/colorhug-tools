@@ -559,6 +559,7 @@ ch_factory_ensure_firmware_data (ChFactoryPrivate *priv, GError **error)
 				     NULL);
 
 	/* load file */
+	g_debug ("using filename %s", filename);
 	ret = g_file_get_contents (filename,
 				   &priv->firmware_data,
 				   &priv->firmware_size,

@@ -293,6 +293,8 @@ ch_flash_md_state_from_string (const gchar *state)
 		return CH_FLASH_MD_STATE_STABLE;
 	if (g_strcmp0 (state, "testing") == 0)
 		return CH_FLASH_MD_STATE_TESTING;
+	if (g_strcmp0 (state, "unstable") == 0)
+		return CH_FLASH_MD_STATE_UNSTABLE;
 	g_debug ("unknown state value: %s", state);
 	return CH_FLASH_MD_STATE_UNKNOWN;
 }
