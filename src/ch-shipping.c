@@ -1644,6 +1644,10 @@ ch_shipping_tracking_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec
 out:
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_email"));
 	gtk_widget_set_sensitive (widget, ret);
+
+	/* focus button */
+	if (len == 13)
+		gtk_widget_grab_focus (widget);
 }
 
 
