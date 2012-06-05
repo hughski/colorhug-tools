@@ -62,7 +62,7 @@ ch_cell_renderer_uint32_set_property (GObject *object, guint param_id,
 	case PROP_VALUE:
 		cru->value = g_value_get_uint (value);
 		g_free (cru->markup);
-		cru->markup = g_strdup_printf ("%" G_GUINT32_FORMAT, cru->value);
+		cru->markup = g_strdup_printf ("%04" G_GUINT32_FORMAT, cru->value);
 
 		/* if the value is zero, we hide the markup */
 		g_object_set (cru,

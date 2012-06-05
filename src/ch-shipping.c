@@ -200,7 +200,7 @@ ch_shipping_order_get_device_ids (ChFactoryPrivate *priv,
 	string = g_string_new ("");
 	for (i = 0; i < array->len; i++) {
 		device_id = g_array_index (array, guint32, i);
-		g_string_append_printf (string, "%03i,", device_id);
+		g_string_append_printf (string, "%04i,", device_id);
 	}
 	if (string->len > 0)
 		g_string_set_size (string, string->len - 1);
