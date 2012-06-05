@@ -24,6 +24,7 @@
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <locale.h>
+#include <colord.h>
 #include <colorhug.h>
 
 typedef struct {
