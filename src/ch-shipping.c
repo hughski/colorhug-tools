@@ -349,7 +349,9 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* get postage type */
 	if (postage == CH_SHIPPING_POSTAGE_UK ||
-	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED) {
+	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_XUK ||
+	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
 		postage_type = "LARGE LETTER";
 	} else {
 		postage_type = "SMALL PACKAGE";
@@ -395,6 +397,18 @@ ch_shipping_get_invoice_filename (ChShippingPostage postage)
 		return "Invoice Europe £56 (signed).odt";
 	if (postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED)
 		return "Invoice World £57 (signed).odt";
+	if (postage == CH_SHIPPING_POSTAGE_XUK)
+		return "Invoice UK £62.odt";
+	if (postage == CH_SHIPPING_POSTAGE_XEUROPE)
+		return "Invoice Europe £63.odt";
+	if (postage == CH_SHIPPING_POSTAGE_XWORLD)
+		return "Invoice World £64.odt";
+	if (postage == CH_SHIPPING_POSTAGE_XUK_SIGNED)
+		return "Invoice UK £67 (signed).odt";
+	if (postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED)
+		return "Invoice Europe £68 (signed).odt";
+	if (postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED)
+		return "Invoice World £69 (signed).odt";
 	return NULL;
 }
 
@@ -645,7 +659,10 @@ ch_shipping_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* clear existing */
 	if (postage == CH_SHIPPING_POSTAGE_UK ||
 	    postage == CH_SHIPPING_POSTAGE_EUROPE ||
-	    postage == CH_SHIPPING_POSTAGE_WORLD) {
+	    postage == CH_SHIPPING_POSTAGE_WORLD ||
+	    postage == CH_SHIPPING_POSTAGE_XUK ||
+	    postage == CH_SHIPPING_POSTAGE_XEUROPE ||
+	    postage == CH_SHIPPING_POSTAGE_XWORLD) {
 		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_shipped_tracking"));
 		gtk_entry_set_text (GTK_ENTRY (widget), "n/a");
 		gtk_widget_set_sensitive (widget, FALSE);
@@ -911,13 +928,13 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* create the email */
 	str = g_string_new ("");
-	g_string_append (str, "I am pleased to announce that the third batch of ColorHugs are now built, ");
+	g_string_append (str, "I am pleased to announce that the fourth batch of ColorHugs are now built, ");
 	g_string_append (str, "tested and ready to ship.\n\n");
 	g_string_append (str, "You are now being given an opportunity to purchase one ColorHug. ");
 	g_string_append (str, "Please read the details on the link below *carefully* before you make the purchase.");
-	g_string_append (str, "Please don't share the URL as there are only 100 units in this batch.\n\n");
-	g_string_append (str, "http://www.hughski.com/buy-from-preorder.html\n\n");
-	g_string_append (str, "I would ask you either decline the offer or complete the purchase within 7 days, ");
+	g_string_append (str, "Please don't share the URL as there are only 130 units in this batch.\n\n");
+	g_string_append (str, "http://www.hughski.com/buy-now.html\n\n");
+	g_string_append (str, "I would ask you either decline the offer or complete the purchase within 14 days, ");
 	g_string_append (str, "otherwise I'll have to allocate your ColorHug to somebody else.\n\n");
 	g_string_append (str, "Thanks again for your support for this new and exciting project.\n\n");
 	g_string_append (str, "Many thanks,\n\n");
@@ -1052,6 +1069,24 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping6"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
 		postage = CH_SHIPPING_POSTAGE_WORLD_SIGNED;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping7"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_XUK;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping8"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_XEUROPE;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping9"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_XWORLD;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping10"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_XUK_SIGNED;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping11"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_XEUROPE_SIGNED;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping12"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_XWORLD_SIGNED;
 skip:
 	/* add to database */
 	order_id = ch_database_add_order (priv->database, name, addr->str, email, postage, &error);
@@ -1145,7 +1180,10 @@ skip:
 	/* print when we will send the item */
 	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
 	    postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED) {
+	    postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED) {
 		if (number_of_devices == 1) {
 			g_string_append (str, "Once the device has been posted we will email again with the tracking number.\n");
 		} else {
@@ -1238,11 +1276,20 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		g_string_append (str, "You will be able to track this item here: http://track2.royalmail.com/portal/rm/trackresults\n");
 	}
 	g_string_append (str, "\n");
-	if (postage == CH_SHIPPING_POSTAGE_UK || postage == CH_SHIPPING_POSTAGE_UK_SIGNED) {
+	if (postage == CH_SHIPPING_POSTAGE_UK ||
+	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_XUK ||
+	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 4 days.\n");
-	} else if (postage == CH_SHIPPING_POSTAGE_EUROPE || postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED) {
+	} else if (postage == CH_SHIPPING_POSTAGE_EUROPE ||
+		   postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
+		   postage == CH_SHIPPING_POSTAGE_XEUROPE ||
+		   postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 8 days.\n");
-	} else if (postage == CH_SHIPPING_POSTAGE_WORLD || postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED) {
+	} else if (postage == CH_SHIPPING_POSTAGE_WORLD ||
+		   postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED ||
+		   postage == CH_SHIPPING_POSTAGE_XWORLD ||
+		   postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED) {
 		g_string_append (str, "Please allow up to three weeks for delivery, although most items are delivered within 10 days.\n");
 	}
 	g_string_append (str, "\n");
@@ -1508,24 +1555,42 @@ ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, 
 		}
 
 		/* get postage */
-		if (g_strstr_len (value, -1, "Postage to ")) {
-			if (g_strstr_len (value, -1, "UK (signed for)")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping4"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "Europe (signed for)")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping5"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "rest of the world (signed for)")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping6"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "UK")) {
+		if (g_strstr_len (value, -1, "Amount:")) {
+			if (g_strstr_len (value, -1, "50")) {
 				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping1"));
 				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "Europe")) {
+			} else if (g_strstr_len (value, -1, "51")) {
 				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping2"));
 				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "rest of the world")) {
+			} else if (g_strstr_len (value, -1, "52")) {
 				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping3"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "55")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping4"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "56")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping5"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "57")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping6"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "62")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping7"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "63")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping8"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "64")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping9"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "67")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping10"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "68")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping11"));
+				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
+			} else if (g_strstr_len (value, -1, "69")) {
+				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping12"));
 				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
 			} else {
 				g_warning ("no postage %s", value);

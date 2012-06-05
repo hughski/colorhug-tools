@@ -45,6 +45,18 @@ ch_shipping_postage_to_string (ChShippingPostage postage)
 		return "EUR-S";
 	if (postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED)
 		return "WOR-S";
+	if (postage == CH_SHIPPING_POSTAGE_XUK)
+		return "XUK";
+	if (postage == CH_SHIPPING_POSTAGE_XEUROPE)
+		return "XEUR";
+	if (postage == CH_SHIPPING_POSTAGE_XWORLD)
+		return "XWOR";
+	if (postage == CH_SHIPPING_POSTAGE_XUK_SIGNED)
+		return "XUK-S";
+	if (postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED)
+		return "XEUR-S";
+	if (postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED)
+		return "XWOR-S";
 	return NULL;
 }
 
