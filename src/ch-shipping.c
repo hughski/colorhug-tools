@@ -1135,8 +1135,12 @@ skip:
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_sending_friday"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
 		sending_day = "Friday";
-	g_string_append_printf (str, "The invoice will be printed and the package will be sent on %s.\n",
-				sending_day);
+	if (sending_day != NULL) {
+		g_string_append_printf (str, "The invoice will be printed and the package will be sent on %s.\n",
+					sending_day);
+	} else {
+		g_string_append (str, "The invoice will be printed and the package will be sent when the payment has completed.\n");
+	}
 
 	/* print when we will send the item */
 	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
