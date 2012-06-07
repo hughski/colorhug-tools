@@ -289,6 +289,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	const gchar *postage_type;
 	gboolean ret;
 	gchar *address = NULL;
+	gchar *comment = NULL;
 	gchar **address_split = NULL;
 	gchar *device_ids = NULL;
 	GString *address_escaped = NULL;
@@ -312,6 +313,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 			    COLUMN_NAME, &name,
 			    COLUMN_ADDRESS, &address,
 			    COLUMN_POSTAGE, &postage,
+			    COLUMN_COMMENT, &comment,
 			    COLUMN_DEVICE_IDS, &device_ids,
 			    -1);
 
@@ -359,10 +361,11 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* add to XML string in the format:
 	 * name,addr1,addr2,addr3,addr4,addr5,serial,shipping,cost */
-	g_string_append_printf (priv->output_csv, "\"%s\",%s,\"%s\",%s,%i,%s\n",
+	g_string_append_printf (priv->output_csv, "\"%s\",%s,\"%s %s\",%s,%i,%s\n",
 				name,
 				address_escaped->str,
 				device_ids,
+				comment != NULL ? comment : "",
 				ch_shipping_postage_to_string (postage),
 				0,
 				postage_type);
@@ -373,6 +376,7 @@ out:
 		g_string_free (address_escaped, TRUE);
 	g_strfreev (address_split);
 	g_free (device_ids);
+	g_free (comment);
 	g_free (address);
 	g_free (name);
 }
