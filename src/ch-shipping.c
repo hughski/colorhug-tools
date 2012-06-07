@@ -1745,8 +1745,10 @@ ch_shipping_treeview_clicked_cb (GtkTreeSelection *selection, ChFactoryPrivate *
 			    -1);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_shipped"));
 	gtk_widget_set_sensitive (widget, tracking_number[0] == '\0');
+	gtk_widget_set_sensitive (widget, TRUE);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_queue"));
 	gtk_widget_set_sensitive (widget, tracking_number[0] == '\0');
+	gtk_widget_set_sensitive (widget, TRUE);
 out:
 	/* buttons */
 	g_free (tracking_number);
