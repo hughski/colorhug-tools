@@ -754,7 +754,7 @@ ch_database_get_all_orders (ChDatabase *database,
 			      "postage, tracking_number, sent_date, "
 			      "comment, state "
 			      "FROM orders "
-			      "ORDER BY order_id DESC LIMIT 150");
+			      "ORDER BY order_id DESC LIMIT 1500");
 	rc = sqlite3_exec (priv->db,
 			   statement,
 			   ch_database_get_all_orders_cb,
