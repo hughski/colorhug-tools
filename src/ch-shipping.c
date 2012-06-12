@@ -280,6 +280,77 @@ out:
 }
 
 /**
+ * ch_shipping_refund_button_cb:
+ **/
+static void
+ch_shipping_refund_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	GArray *array = NULL;
+	gboolean ret;
+	GError *error = NULL;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeSelection *selection;
+	GtkTreeView *treeview;
+	guint32 device_id;
+	guint32 order_id;
+	guint i;
+
+	/* get selected item */
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	selection = gtk_tree_view_get_selection (treeview);
+	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
+	if (!ret)
+		goto out;
+	gtk_tree_model_get (model, &iter,
+			    COLUMN_ORDER_ID, &order_id,
+			    -1);
+
+	/* set the order state */
+	ret = ch_database_order_set_state (priv->database,
+					   order_id,
+					   CH_ORDER_STATE_REFUNDED,
+					   &error);
+
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to set order state as refunded",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* get the devices for this order */
+	array = ch_database_order_get_device_ids (priv->database,
+						  order_id,
+						  &error);
+	if (array == NULL) {
+		ch_shipping_error_dialog (priv, "Failed to set get device ids for order",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* re-allocate devices */
+	for (i = 0; i < array->len; i++) {
+		device_id = g_array_index (array, guint32, i);
+		ret = ch_database_device_set_state (priv->database,
+						    device_id,
+						    CH_DEVICE_STATE_CALIBRATED,
+						    &error);
+		if (!ret) {
+			ch_shipping_error_dialog (priv, "Failed to reset device state",
+						  error->message);
+			g_error_free (error);
+			goto out;
+		}
+	}
+	ch_shipping_refresh_orders (priv);
+out:
+	if (array != NULL)
+		g_array_unref (array);
+}
+
+/**
  * ch_shipping_queue_button_cb:
  **/
 static void
@@ -1816,6 +1887,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_queue"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_queue_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_refund"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_refund_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_order"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_order_button_cb), priv);

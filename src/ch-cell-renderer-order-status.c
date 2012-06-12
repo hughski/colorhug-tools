@@ -79,6 +79,9 @@ ch_cell_renderer_order_status_set_property (GObject *object, guint param_id,
 		case CH_ORDER_STATE_SENT:
 			g_object_set (cru, "icon-name", "colorimeter-colorhug", NULL);
 			break;
+		case CH_ORDER_STATE_REFUNDED:
+			g_object_set (cru, "icon-name", "mail-forward", NULL);
+			break;
 		default:
 			g_object_set (cru, "icon-name", NULL, NULL);
 			break;
