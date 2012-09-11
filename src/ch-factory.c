@@ -963,7 +963,7 @@ ch_factory_measure_check_matrix (const CdMat3x3 *calibration, GError **error)
 	gdouble det;
 
 #define CH_DEVICE_DETERMINANT_AVE	21.53738
-#define CH_DEVICE_DETERMINANT_ERROR	10.00000
+#define CH_DEVICE_DETERMINANT_ERROR	15.00000
 
 	/* check the scale is correct */
 	det = cd_mat33_determinant (calibration);
