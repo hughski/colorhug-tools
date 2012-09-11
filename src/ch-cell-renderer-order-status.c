@@ -76,6 +76,9 @@ ch_cell_renderer_order_status_set_property (GObject *object, guint param_id,
 		case CH_ORDER_STATE_PRINTED:
 			g_object_set (cru, "icon-name", "printer", NULL);
 			break;
+		case CH_ORDER_STATE_TO_BE_PRINTED:
+			g_object_set (cru, "icon-name", "printer-network", NULL);
+			break;
 		case CH_ORDER_STATE_SENT:
 			g_object_set (cru, "icon-name", "colorimeter-colorhug", NULL);
 			break;

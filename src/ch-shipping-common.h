@@ -55,10 +55,13 @@ typedef enum {
 	CH_ORDER_STATE_PRINTED,
 	CH_ORDER_STATE_SENT,
 	CH_ORDER_STATE_REFUNDED,
+	CH_ORDER_STATE_TO_BE_PRINTED,
 	CH_ORDER_STATE_LAST
 } ChOrderState;
 
 const gchar	*ch_shipping_postage_to_string	(ChShippingPostage postage);
+guint		 ch_shipping_postage_to_price	(ChShippingPostage postage);
+guint		 ch_shipping_device_to_price	(ChShippingPostage postage);
 gboolean	 ch_shipping_send_email		(const gchar	*sender,
 						 const gchar	*recipient,
 						 const gchar	*subject,

@@ -43,7 +43,6 @@ typedef struct {
 	GtkBuilder	*builder;
 	ChDatabase	*database;
 	GString		*output_csv;
-	guint		 invoices[CH_SHIPPING_POSTAGE_LAST];
 	GMainLoop	*loop;
 } ChFactoryPrivate;
 
@@ -408,7 +407,7 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* update order status */
 	ret = ch_database_order_set_state (priv->database,
 					   order_id,
-					   CH_ORDER_STATE_PRINTED,
+					   CH_ORDER_STATE_TO_BE_PRINTED,
 					   &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "Failed to update order state",
@@ -416,9 +415,6 @@ ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		g_error_free (error);
 		goto out;
 	}
-
-	/* add to invoide total */
-	priv->invoices[postage]++;
 
 	/* get postage type */
 	if (postage == CH_SHIPPING_POSTAGE_UK ||
@@ -453,38 +449,204 @@ out:
 }
 
 /**
- * ch_shipping_get_invoice_filename:
+ * ch_shipping_strreplace:
  **/
-static const gchar *
-ch_shipping_get_invoice_filename (ChShippingPostage postage)
+static gchar *
+ch_shipping_strreplace (const gchar *haystack, const gchar *needle, const gchar *replace)
 {
-	if (postage == CH_SHIPPING_POSTAGE_UNKNOWN)
-		return "Invoice Freebe.odt";
-	if (postage == CH_SHIPPING_POSTAGE_UK)
-		return "Invoice UK £50.odt";
-	if (postage == CH_SHIPPING_POSTAGE_EUROPE)
-		return "Invoice Europe £51.odt";
-	if (postage == CH_SHIPPING_POSTAGE_WORLD)
-		return "Invoice World £52.odt";
-	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED)
-		return "Invoice UK £55 (signed).odt";
-	if (postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED)
-		return "Invoice Europe £56 (signed).odt";
-	if (postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED)
-		return "Invoice World £57 (signed).odt";
-	if (postage == CH_SHIPPING_POSTAGE_XUK)
-		return "Invoice UK £62.odt";
-	if (postage == CH_SHIPPING_POSTAGE_XEUROPE)
-		return "Invoice Europe £63.odt";
-	if (postage == CH_SHIPPING_POSTAGE_XWORLD)
-		return "Invoice World £64.odt";
-	if (postage == CH_SHIPPING_POSTAGE_XUK_SIGNED)
-		return "Invoice UK £67 (signed).odt";
-	if (postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED)
-		return "Invoice Europe £68 (signed).odt";
-	if (postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED)
-		return "Invoice World £69 (signed).odt";
-	return NULL;
+	gchar *new;
+	gchar **split = NULL;
+
+	if (g_strstr_len (haystack, -1, needle) == NULL) {
+		new = g_strdup (haystack);
+		goto out;
+	}
+	split = g_strsplit (haystack, needle, -1);
+	new = g_strjoinv (replace, split);
+out:
+	g_strfreev (split);
+	return new;
+}
+
+/**
+ * ch_shipping_print_invoice:
+ **/
+static void
+ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
+{
+	ChShippingPostage postage;
+	gboolean ret;
+	gchar *address = NULL;
+	gchar *device_ids = NULL;
+	gchar **address_split = NULL;
+	gchar *name = NULL;
+	GError *error = NULL;
+	GString *str;
+	gint exit_status = 0;
+	guint32 order_id;
+	guint i;
+	guint postage_price;
+	guint device_price;
+	const gchar *argv_latex[] = { "pdflatex", "/tmp/invoice.tex", NULL };
+	const gchar *argv_lpr[] = { "lpr", "/tmp/invoice.pdf", NULL };
+
+	gtk_tree_model_get (model, iter,
+			    COLUMN_ORDER_ID, &order_id,
+			    COLUMN_DEVICE_IDS, &device_ids,
+			    COLUMN_POSTAGE, &postage,
+			    COLUMN_NAME, &name,
+			    COLUMN_ADDRESS, &address,
+			    -1);
+
+	/* replace escaped chars */
+	address = ch_shipping_strreplace (address, "$", "\\$");
+	address = ch_shipping_strreplace (address, "%", "\\%");
+	address = ch_shipping_strreplace (address, "_", "\\_");
+	address = ch_shipping_strreplace (address, "}", "\\}");
+	address = ch_shipping_strreplace (address, "{", "\\{");
+	address = ch_shipping_strreplace (address, "&", "\\&");
+	address = ch_shipping_strreplace (address, "#", "\\#");
+
+	address_split = g_strsplit (address, "|", -1);
+	postage_price = ch_shipping_postage_to_price (postage);
+	device_price = ch_shipping_device_to_price (postage);
+
+	str = g_string_new ("");
+	g_string_append (str, "\\documentclass[a4paper,10pt,oneside]{letter}\n");
+	g_string_append (str, "\\usepackage{ucs}\n");
+	g_string_append (str, "\\usepackage[utf8x]{inputenc}\n");
+	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
+	g_string_append (str, "\\usepackage{fontenc}\n");
+	g_string_append (str, "\\usepackage{graphicx}\n");
+	g_string_append (str, "\\usepackage[margin=0.8in]{geometry}\n");
+	g_string_append (str, "\\usepackage[dvips]{hyperref}\n");
+	g_string_append (str, "\\author{Richard Hughes}\n");
+	g_string_append (str, "\\title{ColorHug Invoice}\n");
+	g_string_append (str, "\\date{28/08/2012}\n");
+	g_string_append (str, "\\thispagestyle{empty}\n");
+	g_string_append (str, "\\pagestyle{empty}\n");
+	g_string_append (str, "\\renewcommand{\\familydefault}{\\sfdefault}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\begin{document}\n");
+	g_string_append (str, "\\large\n");
+	g_string_append (str, "\\renewcommand{\\arraystretch}{1.5}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\begin{minipage}[t]{4in}\n");
+	g_string_append (str, "\\textit{Customer Address:}\\\\\n");
+	g_string_append_printf (str, "%s\\\\\n", name);
+	for (i = 0; address_split[i] != NULL; i++)
+		g_string_append_printf (str, "%s\\\\\n", address_split[i]);
+	g_string_append (str, "\\end{minipage}\n");
+	g_string_append (str, "\\begin{minipage}[t]{2in}\n");
+	g_string_append (str, "\\textit{Supplier Address:}\\\\\n");
+	g_string_append (str, "Hughski Limited\\\\\n");
+	g_string_append (str, "9 Sidmouth Avenue\\\\\n");
+	g_string_append (str, "Isleworth\\\\\n");
+	g_string_append (str, "Middlesex\\\\\n");
+	g_string_append (str, "TW7 4DW\n");
+	g_string_append (str, "\\end{minipage}\n");
+	g_string_append (str, "\n");
+	g_string_append_printf (str, "Invoice number: \\texttt{%04i-1}\\\\\n", order_id);
+	g_string_append_printf (str, "Device numbers: \\texttt{%s}\n", device_ids);
+	g_string_append (str, "\n");
+	g_string_append (str, "\\begin{flushright}\n");
+	g_string_append (str, " \\today\n");
+	g_string_append (str, "\\end{flushright}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\textbf{You bought a ColorHug!}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "I really appreciate you giving open hardware a try. ");
+	g_string_append (str, "Please join the colorhug-users Google group and tell us what you think. ");
+	g_string_append (str, "All announcements about new firmware updates and new client code will also be done on the mailing list.\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "Things you might want to do now:\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\begin{itemize}\n");
+	g_string_append (str, "\\item Check everything is working correctly\n");
+	g_string_append (str, "\\item Create a display CCMX matrix if you have a photospectrometer\n");
+	g_string_append (str, "\\item Check versions of all the software if you don't want to use the LiveCD\n");
+	g_string_append (str, "\\item Check any frequently asked questions\n");
+	g_string_append (str, "\\end{itemize}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "You can do all these things by following the instructions on \\\\\\url{http://www.hughski.com/owner.html}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "If you have any problems with the hardware, please just email \\url{info@hughski.com} with as much information about the problem as possible. ");
+	g_string_append (str, "If you are using your own distribution, then please check with the LiveCD before assuming the hardware has failed.\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "{%\n");
+	g_string_append (str, "\\newcommand{\\mc}[3]{\\multicolumn{#1}{#2}{#3}}\n");
+	g_string_append (str, "\\begin{center}\n");
+	g_string_append (str, "\\begin{tabular}{|l|l|c|c|}\\hline\n");
+	g_string_append (str, "\\mc{1}{|c|}{\\textbf{Quantity}} & \\mc{1}{c|}{\\textbf{Product}} & \\textbf{Cost} & \\textbf{Total}\\\\\\hline\n");
+	g_string_append_printf (str, "\\mc{1}{|c|}{1} & ColorHug (inc. USB and LiveCD) & \\pounds%i.00 & \\pounds%i.00\\\\\\hline\n",
+				device_price, device_price);
+	g_string_append_printf (str, " & Delivery & \\pounds%i.00 & \\pounds%i.00\\\\\\hline\n", postage_price, postage_price);
+	g_string_append_printf (str, " &  &  & \\textbf{\\pounds%i.00}\\\\\\hline\n", device_price + postage_price);
+	g_string_append (str, "\\end{tabular}\n");
+	g_string_append (str, "\\end{center}\n");
+	g_string_append (str, "}%\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\vspace{10px}\n");
+	g_string_append (str, "\\hspace{50px}Many thanks,\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\hspace{75px}\\includegraphics{/home/hughsie/Documents/Secure/signature.png}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\hspace{100px}Richard Hughes\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\vspace{20px}\n");
+	g_string_append (str, "\n");
+	g_string_append_printf (str, "\\let\\thefootnote\\relax\\footnote{\\texttt{%s}}\n", ch_shipping_postage_to_string (postage));
+	g_string_append (str, "\n");
+	g_string_append (str, "\\end{document}\n");
+
+	/* save */
+	ret = g_file_set_contents ("/tmp/invoice.tex", str->str, -1, &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "failed to save file: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* convert to pdf */
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to prepare invoice", error->message);
+		g_error_free (error);
+		goto out;
+	}
+	if (exit_status != 0) {
+		ch_shipping_error_dialog (priv, "Failed to prepare invoice", "ses stdout");
+		goto out;
+	}
+
+	/* send to the printer */
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to print invoice", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* change the state to printed */
+	gtk_list_store_set (GTK_LIST_STORE (model), iter,
+			    COLUMN_ORDER_STATE, CH_ORDER_STATE_PRINTED,
+			    -1);
+	ret = ch_database_order_set_state (priv->database,
+					   order_id,
+					   CH_ORDER_STATE_PRINTED,
+					   &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to update order state",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
+out:
+	g_free (name);
+	g_free (address);
+	g_free (device_ids);
+	g_strfreev (address_split);
+	g_string_free (str, TRUE);
 }
 
 /**
@@ -493,35 +655,24 @@ ch_shipping_get_invoice_filename (ChShippingPostage postage)
 static void
 ch_shipping_print_invoices_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
+	/* find any orders in the to-be-printed state */
 	gboolean ret;
-	gchar *cmd;
-	gchar *document_path;
-	GError *error = NULL;
-	guint i, j;
+	GtkTreeIter iter;
+	ChOrderState order_state;
+	GtkTreeModel *model;
+	GtkTreeView *treeview;
 
-	document_path = g_settings_get_string (priv->settings, "invoice-documents-uri");
-	for (i = 0; i < CH_SHIPPING_POSTAGE_LAST; i++) {
-		ch_shipping_get_invoice_filename (i);
-		for (j = 0; j < priv->invoices[i]; j++) {
-			cmd = g_strdup_printf ("soffice -p '%s/%s'", document_path, ch_shipping_get_invoice_filename (i));
-			ret = g_spawn_command_line_sync (cmd, NULL, NULL, NULL, &error);
-			if (!ret) {
-				ch_shipping_error_dialog (priv, "Failed to print invoice", error->message);
-				g_error_free (error);
-				goto out;
-			}
-			g_free (cmd);
-		}
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	model = gtk_tree_view_get_model (treeview);
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_tree_model_get (model, &iter,
+				    COLUMN_ORDER_STATE, &order_state,
+				    -1);
+		if (order_state == CH_ORDER_STATE_TO_BE_PRINTED)
+			ch_shipping_print_invoice (priv, model, &iter);
+		ret = gtk_tree_model_iter_next (model, &iter);
 	}
-
-	/* reset the invoice count */
-	for (i = 0; i < CH_SHIPPING_POSTAGE_LAST; i++)
-		priv->invoices[i] = 0;
-
-	/* refresh status */
-	ch_shipping_refresh_status (priv);
-out:
-	g_free (document_path);
 }
 
 /**
@@ -2023,7 +2174,6 @@ main (int argc, char **argv)
 	gchar *database_uri = NULL;
 	GError *error = NULL;
 	GOptionContext *context;
-	guint i;
 	int status = 0;
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
@@ -2061,10 +2211,6 @@ main (int argc, char **argv)
 	/* set the database location */
 	database_uri = g_settings_get_string (priv->settings, "database-uri");
 	ch_database_set_uri (priv->database, database_uri);
-
-	/* reset the invoice count */
-	for (i = 0; i < CH_SHIPPING_POSTAGE_LAST; i++)
-		priv->invoices[i] = 0;
 
 	/* ensure single instance */
 	priv->application = gtk_application_new ("com.hughski.ColorHug.Shipping", 0);

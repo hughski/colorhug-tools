@@ -26,6 +26,80 @@
 #include "ch-shipping-common.h"
 
 /**
+ * ch_shipping_postage_to_price:
+ **/
+guint
+ch_shipping_postage_to_price (ChShippingPostage postage)
+{
+	switch (postage) {
+	case CH_SHIPPING_POSTAGE_UNKNOWN:
+		return 0;
+		break;
+	case CH_SHIPPING_POSTAGE_UK:
+	case CH_SHIPPING_POSTAGE_XUK:
+		return 2;
+		break;
+	case CH_SHIPPING_POSTAGE_EUROPE:
+	case CH_SHIPPING_POSTAGE_XEUROPE:
+		return 3;
+		break;
+	case CH_SHIPPING_POSTAGE_WORLD:
+	case CH_SHIPPING_POSTAGE_XWORLD:
+		return 4;
+		break;
+	case CH_SHIPPING_POSTAGE_UK_SIGNED:
+	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
+		return 7;
+		break;
+	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
+	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
+		return 8;
+		break;
+	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
+	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
+		return 9;
+		break;
+	default:
+		g_assert_not_reached ();
+		break;
+	}
+	return 0;
+}
+
+/**
+ * ch_shipping_device_to_price:
+ **/
+guint
+ch_shipping_device_to_price (ChShippingPostage postage)
+{
+	switch (postage) {
+	case CH_SHIPPING_POSTAGE_UNKNOWN:
+		return 0;
+		break;
+	case CH_SHIPPING_POSTAGE_UK:
+	case CH_SHIPPING_POSTAGE_EUROPE:
+	case CH_SHIPPING_POSTAGE_WORLD:
+	case CH_SHIPPING_POSTAGE_UK_SIGNED:
+	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
+	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
+		return 48;
+		break;
+	case CH_SHIPPING_POSTAGE_XUK:
+	case CH_SHIPPING_POSTAGE_XEUROPE:
+	case CH_SHIPPING_POSTAGE_XWORLD:
+	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
+	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
+	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
+		return 60;
+		break;
+	default:
+		g_assert_not_reached ();
+		break;
+	}
+	return 0;
+}
+
+/**
  * ch_shipping_postage_to_string:
  **/
 const gchar *
