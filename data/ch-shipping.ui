@@ -56,7 +56,6 @@
             <child>
               <object class="GtkButton" id="button_close">
                 <property name="label">gtk-close</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -121,13 +120,11 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <child>
-                          <object class="GtkToolButton" id="toolbutton_queue">
-                            <property name="use_action_appearance">False</property>
+                          <object class="GtkToolButton" id="toolbutton_set_tracking">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="is_important">True</property>
-                            <property name="label" translatable="yes">Queue for printing</property>
+                            <property name="label" translatable="yes">Set tracking number</property>
                             <property name="use_underline">True</property>
                           </object>
                           <packing>
@@ -137,10 +134,8 @@
                         </child>
                         <child>
                           <object class="GtkToolButton" id="toolbutton_shipped">
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="is_important">True</property>
                             <property name="label" translatable="yes">Mark as shipped</property>
                             <property name="use_underline">True</property>
@@ -152,11 +147,9 @@
                         </child>
                         <child>
                           <object class="GtkToolButton" id="toolbutton_comment">
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
                             <property name="tooltip_text" translatable="yes">Add or edit an order comment</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="is_important">True</property>
                             <property name="label" translatable="yes">Edit comment</property>
                             <property name="use_underline">True</property>
@@ -168,10 +161,8 @@
                         </child>
                         <child>
                           <object class="GtkToolButton" id="toolbutton_refund">
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="is_important">True</property>
                             <property name="label" translatable="yes">Refund &amp; Reallocate</property>
                             <property name="use_underline">True</property>
@@ -206,7 +197,6 @@
                     <child>
                       <object class="GtkButton" id="button_order">
                         <property name="label" translatable="yes">New Order</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
@@ -220,7 +210,6 @@
                     <child>
                       <object class="GtkButton" id="button_print_labels">
                         <property name="label">Print Labels</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
@@ -234,7 +223,6 @@
                     <child>
                       <object class="GtkButton" id="button_print_invoices">
                         <property name="label" translatable="yes">Print Invoices</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
@@ -246,9 +234,12 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkSeparator" id="separator1">
+                      <object class="GtkButton" id="button_print_manifest">
+                        <property name="label" translatable="yes">Print Manifest</property>
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                        <property name="yalign">0.49000000953674316</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -257,12 +248,9 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="button_preorder">
-                        <property name="label" translatable="yes">Add Preorders</property>
-                        <property name="use_action_appearance">False</property>
+                      <object class="GtkSeparator" id="separator1">
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
+                        <property name="can_focus">False</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -271,9 +259,8 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="button_invite">
-                        <property name="label" translatable="yes">Send Invites to Buy</property>
-                        <property name="use_action_appearance">False</property>
+                      <object class="GtkButton" id="button_preorder">
+                        <property name="label" translatable="yes">Add Preorders</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
@@ -285,9 +272,8 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="button_refresh">
-                        <property name="label" translatable="yes">Refresh Database</property>
-                        <property name="use_action_appearance">False</property>
+                      <object class="GtkButton" id="button_invite">
+                        <property name="label" translatable="yes">Send Invites to Buy</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
@@ -296,6 +282,19 @@
                         <property name="expand">False</property>
                         <property name="fill">True</property>
                         <property name="position">6</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="button_refresh">
+                        <property name="label" translatable="yes">Refresh Database</property>
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="receives_default">True</property>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="position">7</property>
                       </packing>
                     </child>
                   </object>
@@ -342,7 +341,6 @@
             <child>
               <object class="GtkButton" id="button_comment_cancel">
                 <property name="label">gtk-cancel</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -357,7 +355,6 @@
             <child>
               <object class="GtkButton" id="button_comment_edit">
                 <property name="label" translatable="yes">Edit Comment</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -439,7 +436,6 @@
             <child>
               <object class="GtkButton" id="button_invite_cancel">
                 <property name="label">gtk-cancel</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -454,7 +450,6 @@
             <child>
               <object class="GtkButton" id="button_invite_send">
                 <property name="label" translatable="yes">Send Emails</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -598,7 +593,6 @@
             <child>
               <object class="GtkButton" id="button_order_cancel">
                 <property name="label">gtk-cancel</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -613,7 +607,6 @@
             <child>
               <object class="GtkButton" id="button_order_add">
                 <property name="label">gtk-add</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -826,7 +819,6 @@
                     <child>
                       <object class="GtkRadioButton" id="radiobutton_sending_monday">
                         <property name="label" translatable="yes">Monday</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
@@ -843,7 +835,6 @@
                     <child>
                       <object class="GtkRadioButton" id="radiobutton_sending_tuesday">
                         <property name="label" translatable="yes">Tuesday</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
@@ -860,7 +851,6 @@
                     <child>
                       <object class="GtkRadioButton" id="radiobutton_sending_wednesday">
                         <property name="label" translatable="yes">Wednesday</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
@@ -877,7 +867,6 @@
                     <child>
                       <object class="GtkRadioButton" id="radiobutton_sending_thursday">
                         <property name="label" translatable="yes">Thursday</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
@@ -894,7 +883,6 @@
                     <child>
                       <object class="GtkRadioButton" id="radiobutton_sending_friday">
                         <property name="label" translatable="yes">Friday</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
@@ -911,7 +899,6 @@
                     <child>
                       <object class="GtkRadioButton" id="radiobutton_sending_bacs">
                         <property name="label" translatable="yes">When money clears</property>
-                        <property name="use_action_appearance">False</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">False</property>
@@ -1010,7 +997,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping1">
                             <property name="label" translatable="yes">UK</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1026,7 +1012,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping2">
                             <property name="label" translatable="yes">Europe</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1043,7 +1028,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping3">
                             <property name="label" translatable="yes">Worldwide</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1061,7 +1045,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping4">
                             <property name="label" translatable="yes">UK (signed)</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1079,7 +1062,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping5">
                             <property name="label" translatable="yes">Europe (signed)</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1097,7 +1079,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping6">
                             <property name="label" translatable="yes">Worldwide (signed)</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1141,7 +1122,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping7">
                             <property name="label" translatable="yes">UK</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1159,7 +1139,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping8">
                             <property name="label" translatable="yes">Europe</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1176,7 +1155,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping9">
                             <property name="label" translatable="yes">Worldwide</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1193,7 +1171,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping10">
                             <property name="label" translatable="yes">UK (signed)</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1210,7 +1187,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping11">
                             <property name="label" translatable="yes">Europe (signed)</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1227,7 +1203,6 @@
                         <child>
                           <object class="GtkRadioButton" id="radiobutton_shipping12">
                             <property name="label" translatable="yes">Worldwide (signed)</property>
-                            <property name="use_action_appearance">False</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">False</property>
@@ -1327,7 +1302,6 @@
             <child>
               <object class="GtkButton" id="button_queue_cancel">
                 <property name="label">gtk-cancel</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -1342,7 +1316,6 @@
             <child>
               <object class="GtkButton" id="button_queue_add">
                 <property name="label" translatable="yes">Add to database and send emails</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -1397,7 +1370,6 @@
             <child>
               <object class="GtkCheckButton" id="checkbutton_queue_promote">
                 <property name="label" translatable="yes">Promote to top of list</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">False</property>
@@ -1442,7 +1414,6 @@
             <child>
               <object class="GtkButton" id="button_shipped_cancel">
                 <property name="label">gtk-cancel</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -1457,7 +1428,6 @@
             <child>
               <object class="GtkButton" id="button_shipped_email">
                 <property name="label" translatable="yes">Mark as sent</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -1465,7 +1435,7 @@
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
           </object>
@@ -1521,7 +1491,6 @@
             <child>
               <object class="GtkCheckButton" id="checkbutton_shipped_email">
                 <property name="label" translatable="yes">Also send email</property>
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">False</property>
@@ -1550,8 +1519,102 @@
       <action-widget response="0">button_shipped_email</action-widget>
     </action-widgets>
   </object>
+  <object class="GtkDialog" id="dialog_tracking">
+    <property name="can_focus">False</property>
+    <property name="border_width">5</property>
+    <property name="type_hint">dialog</property>
+    <property name="transient_for">dialog_shipping</property>
+    <child internal-child="vbox">
+      <object class="GtkBox" id="dialog-vbox10">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox" id="dialog-action_area10">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="button_tracking_cancel">
+                <property name="label" translatable="yes">Cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="button_tracking_set">
+                <property name="label" translatable="yes">Save to database</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="pack_type">end</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="box11">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkLabel" id="label16">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">Tracking Number:</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkEntry" id="entry_tracking_id">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="invisible_char">●</property>
+                <property name="invisible_char_set">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">button_tracking_cancel</action-widget>
+      <action-widget response="0">button_tracking_set</action-widget>
+    </action-widgets>
+  </object>
   <object class="GtkListStore" id="liststore_orders">
     <columns>
+      <!-- column-name checkbox -->
+      <column type="gboolean"/>
       <!-- column-name order_id -->
       <column type="guint"/>
       <!-- column-name name -->

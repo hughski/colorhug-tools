@@ -67,6 +67,47 @@ ch_shipping_postage_to_price (ChShippingPostage postage)
 }
 
 /**
+ * ch_shipping_postage_to_service:
+ **/
+const gchar *
+ch_shipping_postage_to_service (ChShippingPostage postage)
+{
+	switch (postage) {
+	case CH_SHIPPING_POSTAGE_UNKNOWN:
+		return "xxx";
+		break;
+	case CH_SHIPPING_POSTAGE_UK:
+	case CH_SHIPPING_POSTAGE_XUK:
+		return "1c LL";
+		break;
+	case CH_SHIPPING_POSTAGE_EUROPE:
+	case CH_SHIPPING_POSTAGE_XEUROPE:
+		return "A sm pkt 100g";
+		break;
+	case CH_SHIPPING_POSTAGE_WORLD:
+	case CH_SHIPPING_POSTAGE_XWORLD:
+		return "A sm pkt 100g";
+		break;
+	case CH_SHIPPING_POSTAGE_UK_SIGNED:
+	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
+		return "1RSF 100g";
+		break;
+	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
+	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
+		return "AISF 100g";
+		break;
+	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
+	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
+		return "AISF 100g";
+		break;
+	default:
+		g_assert_not_reached ();
+		break;
+	}
+	return NULL;
+}
+
+/**
  * ch_shipping_device_to_price:
  **/
 guint

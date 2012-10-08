@@ -60,6 +60,7 @@ typedef enum {
 } ChOrderState;
 
 const gchar	*ch_shipping_postage_to_string	(ChShippingPostage postage);
+const gchar	*ch_shipping_postage_to_service	(ChShippingPostage postage);
 guint		 ch_shipping_postage_to_price	(ChShippingPostage postage);
 guint		 ch_shipping_device_to_price	(ChShippingPostage postage);
 gboolean	 ch_shipping_send_email		(const gchar	*sender,

@@ -42,11 +42,11 @@ typedef struct {
 	GtkApplication	*application;
 	GtkBuilder	*builder;
 	ChDatabase	*database;
-	GString		*output_csv;
 	GMainLoop	*loop;
 } ChFactoryPrivate;
 
 enum {
+	COLUMN_CHECKBOX,
 	COLUMN_ORDER_ID,
 	COLUMN_NAME,
 	COLUMN_ADDRESS,
@@ -139,10 +139,8 @@ ch_shipping_refresh_status (ChFactoryPrivate *priv)
 {
 	GError *error = NULL;
 	GtkWidget *widget;
-	guint cnt = 0;
 	guint devices_left;
 	guint queue_size = 0;
-	guint i;
 	GPtrArray *queue = NULL;
 
 	/* update status */
@@ -152,12 +150,6 @@ ch_shipping_refresh_status (ChFactoryPrivate *priv)
 		ch_shipping_error_dialog (priv, "Failed to get number of devices", error->message);
 		g_error_free (error);
 		goto out;
-	}
-
-	/* count pending print jobs */
-	for (i = 0; i < priv->output_csv->len; i++) {
-		if (priv->output_csv->str[i] == '\n')
-			cnt++;
 	}
 
 	/* count preorder list size */
@@ -171,7 +163,7 @@ ch_shipping_refresh_status (ChFactoryPrivate *priv)
 out:
 	if (queue != NULL)
 		g_ptr_array_unref (queue);
-	gtk_label_set_text (GTK_LABEL (widget), g_strdup_printf ("%i devices remaining to be sold, %i preorders, %i documents waiting to be printed", devices_left, queue_size, cnt));
+	gtk_label_set_text (GTK_LABEL (widget), g_strdup_printf ("%i devices remaining to be sold, %i preorders", devices_left, queue_size));
 }
 
 /**
@@ -266,6 +258,7 @@ ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 				    COLUMN_COMMENT, order->comment,
 				    COLUMN_ORDER_STATE, order->state,
 				    COLUMN_DEVICE_IDS, device_ids,
+				    COLUMN_CHECKBOX, FALSE,
 				    -1);
 		g_free (device_ids);
 		g_free (name_tmp);
@@ -350,105 +343,6 @@ out:
 }
 
 /**
- * ch_shipping_queue_button_cb:
- **/
-static void
-ch_shipping_queue_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	ChShippingPostage postage;
-	const gchar *postage_type;
-	gboolean ret;
-	gchar *address = NULL;
-	gchar *comment = NULL;
-	gchar **address_split = NULL;
-	gchar *device_ids = NULL;
-	GString *address_escaped = NULL;
-	gchar *name = NULL;
-	GError *error = NULL;
-	GtkTreeIter iter;
-	GtkTreeModel *model;
-	GtkTreeSelection *selection;
-	GtkTreeView *treeview;
-	guint32 order_id;
-	guint i;
-
-	/* get selected item */
-	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
-	selection = gtk_tree_view_get_selection (treeview);
-	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
-	if (!ret)
-		goto out;
-	gtk_tree_model_get (model, &iter,
-			    COLUMN_ORDER_ID, &order_id,
-			    COLUMN_NAME, &name,
-			    COLUMN_ADDRESS, &address,
-			    COLUMN_POSTAGE, &postage,
-			    COLUMN_COMMENT, &comment,
-			    COLUMN_DEVICE_IDS, &device_ids,
-			    -1);
-
-	address_split = g_strsplit (address, "|", -1);
-	if (g_strv_length (address_split) == 1) {
-		/* old format */
-		address_escaped = g_string_new (address);
-	} else {
-		address_escaped = g_string_new ("");
-		for (i = 0; address_split[i] != NULL; i++) {
-			g_string_append_printf (address_escaped,
-						"\"%s\",",
-						address_split[i]);
-		}
-		if (address_escaped->len > 0) {
-			g_string_set_size (address_escaped,
-					   address_escaped-> len - 1);
-		}
-	}
-
-	/* update order status */
-	ret = ch_database_order_set_state (priv->database,
-					   order_id,
-					   CH_ORDER_STATE_TO_BE_PRINTED,
-					   &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to update order state",
-					  error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* get postage type */
-	if (postage == CH_SHIPPING_POSTAGE_UK ||
-	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XUK ||
-	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
-		postage_type = "LARGE LETTER";
-	} else {
-		postage_type = "SMALL PACKAGE";
-	}
-
-	/* add to XML string in the format:
-	 * name,addr1,addr2,addr3,addr4,addr5,serial,shipping,cost */
-	g_string_append_printf (priv->output_csv, "\"%s\",%s,\"%s %s\",%s,%i,%s\n",
-				name,
-				address_escaped->str,
-				device_ids,
-				comment != NULL ? comment : "",
-				ch_shipping_postage_to_string (postage),
-				0,
-				postage_type);
-	g_warning ("queue now %s", priv->output_csv->str);
-	ch_shipping_refresh_orders (priv);
-out:
-	if (address_escaped != NULL)
-		g_string_free (address_escaped, TRUE);
-	g_strfreev (address_split);
-	g_free (device_ids);
-	g_free (comment);
-	g_free (address);
-	g_free (name);
-}
-
-/**
  * ch_shipping_strreplace:
  **/
 static gchar *
@@ -469,6 +363,48 @@ out:
 }
 
 /**
+ * ch_shipping_print_latex_doc:
+ **/
+static gboolean
+ch_shipping_print_latex_doc (const gchar *str, const gchar *printer, GError **error)
+{
+	const gchar *argv_latex[] = { "pdflatex", "/tmp/temp.tex", NULL };
+	gboolean ret;
+	gint exit_status = 0;
+	GPtrArray *argv_lpr = NULL;
+
+	/* save */
+	ret = g_file_set_contents ("/tmp/temp.tex", str, -1, error);
+	if (!ret)
+		goto out;
+
+	/* convert to pdf */
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
+	if (!ret)
+		goto out;
+	if (exit_status != 0) {
+		ret = FALSE;
+		g_set_error_literal (error, 1, 0, "Failed to prepare invoice");
+		goto out;
+	}
+
+	/* send to the printer */
+	argv_lpr = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
+	if (printer != NULL)
+		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
+	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp.pdf"));
+	g_ptr_array_add (argv_lpr, NULL);
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
+	if (!ret)
+		goto out;
+out:
+	if (argv_lpr != NULL)
+		g_ptr_array_unref (argv_lpr);
+	return ret;
+}
+
+/**
  * ch_shipping_print_invoice:
  **/
 static void
@@ -482,13 +418,10 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	gchar *name = NULL;
 	GError *error = NULL;
 	GString *str;
-	gint exit_status = 0;
 	guint32 order_id;
 	guint i;
 	guint postage_price;
 	guint device_price;
-	const gchar *argv_latex[] = { "pdflatex", "/tmp/invoice.tex", NULL };
-	const gchar *argv_lpr[] = { "lpr", "/tmp/invoice.pdf", NULL };
 
 	gtk_tree_model_get (model, iter,
 			    COLUMN_ORDER_ID, &order_id,
@@ -599,30 +532,10 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	g_string_append (str, "\n");
 	g_string_append (str, "\\end{document}\n");
 
-	/* save */
-	ret = g_file_set_contents ("/tmp/invoice.tex", str->str, -1, &error);
+	/* print */
+	ret = ch_shipping_print_latex_doc (str->str, NULL, &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "failed to save file: %s", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* convert to pdf */
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to prepare invoice", error->message);
-		g_error_free (error);
-		goto out;
-	}
-	if (exit_status != 0) {
-		ch_shipping_error_dialog (priv, "Failed to prepare invoice", "ses stdout");
-		goto out;
-	}
-
-	/* send to the printer */
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to print invoice", error->message);
 		g_error_free (error);
 		goto out;
 	}
@@ -655,10 +568,9 @@ out:
 static void
 ch_shipping_print_invoices_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
-	/* find any orders in the to-be-printed state */
 	gboolean ret;
 	GtkTreeIter iter;
-	ChOrderState order_state;
+	gboolean checkbox;
 	GtkTreeModel *model;
 	GtkTreeView *treeview;
 
@@ -667,12 +579,273 @@ ch_shipping_print_invoices_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	ret = gtk_tree_model_get_iter_first (model, &iter);
 	while (ret) {
 		gtk_tree_model_get (model, &iter,
-				    COLUMN_ORDER_STATE, &order_state,
+				    COLUMN_CHECKBOX, &checkbox,
 				    -1);
-		if (order_state == CH_ORDER_STATE_TO_BE_PRINTED)
+		if (checkbox)
 			ch_shipping_print_invoice (priv, model, &iter);
 		ret = gtk_tree_model_iter_next (model, &iter);
 	}
+}
+
+/**
+ * ch_shipping_print_manifest:
+ **/
+static void
+ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *model, GtkTreeIter *iter)
+{
+	ChShippingPostage postage;
+	gchar *address = NULL;
+	gchar **address_split = NULL;
+	gchar *device_ids = NULL;
+	gchar *name = NULL;
+	gchar *tracking;
+	guint32 order_id;
+	guint device_price;
+	guint i;
+
+	gtk_tree_model_get (model, iter,
+			    COLUMN_ORDER_ID, &order_id,
+			    COLUMN_DEVICE_IDS, &device_ids,
+			    COLUMN_POSTAGE, &postage,
+			    COLUMN_NAME, &name,
+			    COLUMN_ADDRESS, &address,
+			    COLUMN_TRACKING, &tracking,
+			    -1);
+
+	/* replace escaped chars */
+	address = ch_shipping_strreplace (address, "$", "\\$");
+	address = ch_shipping_strreplace (address, "%", "\\%");
+	address = ch_shipping_strreplace (address, "_", "\\_");
+	address = ch_shipping_strreplace (address, "}", "\\}");
+	address = ch_shipping_strreplace (address, "{", "\\{");
+	address = ch_shipping_strreplace (address, "&", "\\&");
+	address = ch_shipping_strreplace (address, "#", "\\#");
+
+	address_split = g_strsplit (address, "|", -1);
+//	postage_price = ch_shipping_postage_to_price (postage);
+	device_price = ch_shipping_device_to_price (postage);
+
+	i = g_strv_length (address_split);
+	if (g_strcmp0 (address_split[i-1], " ") == 0)
+		i--;
+	if (g_strcmp0 (address_split[i-1], " ") == 0)
+		i--;
+	if (g_strcmp0 (address_split[i-1], " ") == 0)
+		i--;
+	g_string_append_printf (str, " %s, %s & %s & %s & \\pounds %i & %s & %s \\\\\\hline\n",
+				address_split[i-2], address_split[i-1],
+				address_split[0],
+				ch_shipping_postage_to_service (postage),
+				device_price,
+				tracking[0] != '\0' ? tracking : "n/a",
+				device_ids);
+//out:
+	g_free (name);
+	g_free (tracking);
+	g_free (address);
+	g_free (device_ids);
+	g_strfreev (address_split);
+}
+
+/**
+ * ch_shipping_print_manifest_button_cb:
+ **/
+static void
+ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	/* find any orders in the to-be-printed state */
+	gboolean ret;
+	GtkTreeIter iter;
+	gboolean checkbox;
+	GtkTreeModel *model;
+	GtkTreeView *treeview;
+	GString *str;
+	guint cnt = 0;
+	guint i;
+	GError *error = NULL;
+	GDateTime *date;
+
+	date = g_date_time_new_now_local ();
+	str = g_string_new ("");
+
+	g_string_append (str, "\\documentclass[landscape,a4paper,10pt]{article}\n");
+	g_string_append (str, "\\usepackage[utf8]{inputenc}\n");
+	g_string_append (str, "\\usepackage[landscape,margin=0.5in]{geometry}\n");
+	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
+	g_string_append (str, "\\usepackage{graphicx}\n");
+	g_string_append (str, "\\author{Richard Hughes}\n");
+	g_string_append (str, "\\title{ColorHug Manifest}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\pagestyle{empty}\n");
+	g_string_append (str, "\\renewcommand{\\familydefault}{\\sfdefault}\n");
+	g_string_append (str, "\\newcommand{\\mc}[3]{\\multicolumn{#1}{#2}{#3}}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\begin{document}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\begin{LARGE}\n");
+	g_string_append (str, "\\begin{tabular}{lll}\n");
+	g_string_append (str, "\\includegraphics[scale=0.25]{/home/hughsie/Code/ColorHug/Documents/post-office.png} \\hspace{40px} & \\mc{2}{l}{\\includegraphics[scale=0.25]{/home/hughsie/Code/ColorHug/Documents/drop-and-go.png}}\\\\\n");
+	g_string_append (str, "& Company/Customer name: Hughski Limited \\hspace{50px} & Customer Number: 19346790\n");
+	g_string_append (str, "\\end{tabular}\n");
+	g_string_append (str, "\\end{LARGE}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\def\\arraystretch{1.5}\n");
+	g_string_append (str, "\\begin{large}\n");
+	g_string_append (str, "\\begin{center}\n");
+	g_string_append (str, "\\begin{tabular}{|c|c|c|c|c|c|c|}\\hline\n");
+	g_string_append (str, "\\mc{7}{|c|}{\\textbf{ITEMS THAT REQUIRE A CERTIFICATE OF POSTING INCLUDING ALL BARCODED PRODUCTS}}\\\\\\hline\n");
+	g_string_append (str, "\\textbf{Item} & \\textbf{Post Code} & \\textbf{Building Name or No.} & \\textbf{Service Required} & \\textbf{Value} & \\textbf{Barcode number} & \\textbf{Information}\\\\\\hline\n");
+
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	model = gtk_tree_view_get_model (treeview);
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_tree_model_get (model, &iter,
+				    COLUMN_CHECKBOX, &checkbox,
+				    -1);
+		if (checkbox) {
+			g_string_append_printf (str, "%i. & ", cnt + 1);
+			ch_shipping_print_manifest (priv, str, model, &iter);
+			cnt++;
+		}
+		ret = gtk_tree_model_iter_next (model, &iter);
+	}
+
+	for (i = cnt; i < 10; i++)
+		g_string_append_printf (str, "%i. & - & - & - & - & - & - \\\\\\hline\n", i + 1);
+
+	g_string_append (str, "\\mc{7}{l}{} \\\\\\hline\n");
+	g_string_append (str, "\n");
+	g_string_append_printf (str, "\\mc{5}{|l}{} & \\textbf{TOTAL NUMBER} & %i \\\\\\hline", cnt);
+	g_string_append (str, "\n");
+	g_string_append (str, "\\mc{6}{|l|}{\\textbf{NUMBER OF ITEMS THAT DO NOT NEED A CERT OF POSTING (not including those listed above)}} & 0\\\\\\hline\n");
+	g_string_append_printf (str, "\\mc{6}{|l|}{\\textbf{TOTAL NUMBER OF ITEMS HANDED OVER}} & %i\\\\\\hline", cnt);
+	g_string_append (str, "\\end{tabular}\n");
+	g_string_append (str, "\\end{center}\n");
+	g_string_append (str, "\\end{large}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\begin{LARGE}\n");
+	g_string_append (str, "\\begin{center}\n");
+	g_string_append (str, "\\begin{tabular}{lll}\n");
+	g_string_append_printf (str, "Date: %02i/%02i/%04i \\hspace{30px} & Customer Signature: \\raisebox{-0.5\\height}{\\includegraphics[scale=0.80]{/home/hughsie/Documents/Secure/signature.png}} \\hspace{30px} & Date Stamp: \\raisebox{-0.5\\height}{\\includegraphics[scale=0.25]{/home/hughsie/Code/ColorHug/Documents/date-stamp.png}}\n",
+				g_date_time_get_day_of_month (date),
+				g_date_time_get_month (date),
+				g_date_time_get_year (date));
+	g_string_append (str, "\\end{tabular}\n");
+	g_string_append (str, "\\end{center}\n");
+	g_string_append (str, "\\end{LARGE}\n");
+	g_string_append (str, "\n");
+	g_string_append (str, "\\end{document}\n");
+
+	/* print */
+	ret = ch_shipping_print_latex_doc (str->str, NULL, &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "failed to save file: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+out:
+	g_string_free (str, TRUE);
+}
+
+
+
+/**
+ * ch_shipping_print_label:
+ **/
+static void
+ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
+{
+
+	ChShippingPostage postage;
+//	const gchar *postage_type;
+	gboolean ret;
+	gchar *address = NULL;
+	gchar *comment = NULL;
+	gchar **address_split = NULL;
+	gchar *device_ids = NULL;
+	GString *address_escaped = NULL;
+	gchar *name = NULL;
+	GError *error = NULL;
+	guint32 order_id;
+	guint i;
+	GString *str = NULL;
+
+	/* get selected item */
+	gtk_tree_model_get (model, iter,
+			    COLUMN_ORDER_ID, &order_id,
+			    COLUMN_NAME, &name,
+			    COLUMN_ADDRESS, &address,
+			    COLUMN_POSTAGE, &postage,
+			    COLUMN_COMMENT, &comment,
+			    COLUMN_DEVICE_IDS, &device_ids,
+			    -1);
+
+	address_split = g_strsplit (address, "|", -1);
+
+	/* update order status */
+	ret = ch_database_order_set_state (priv->database,
+					   order_id,
+					   CH_ORDER_STATE_TO_BE_PRINTED,
+					   &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to update order state",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	str = g_string_new ("");
+	g_string_append (str, "\\documentclass[12pt]{letter}\n");
+	g_string_append (str, "\\usepackage{geometry}\n");
+	g_string_append (str, "\\usepackage{tabularx}\n");
+	g_string_append (str, "\\usepackage{ucs}\n");
+	g_string_append (str, "\\usepackage[utf8x]{inputenc}\n");
+	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
+	g_string_append (str, "\\usepackage{fontenc}\n");
+	g_string_append (str, "\\usepackage[hang,flushmargin]{footmisc} \n");
+	g_string_append (str, "\\geometry{papersize={50.8mm,50.8mm},total={49mm,48mm}}\n");
+	g_string_append (str, "\\begin{document}\n");
+	g_string_append (str, "\\pagestyle{empty}\n");
+	if (postage == CH_SHIPPING_POSTAGE_UK ||
+	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_XUK ||
+	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
+		g_string_append (str, "\\noindent\\textbf{LARGE LETTER}\n");
+	} else {
+		g_string_append (str, "\\noindent\\textbf{SMALL PACKAGE}\n");
+	}
+	g_string_append (str, "\n");
+	g_string_append (str, "\\noindent\n");
+	g_string_append_printf (str, "%s\\\\\n", name);
+
+	for (i = 0; address_split[i] != NULL; i++) {
+		g_string_append_printf (str,
+					"%s\\\\\n",
+					address_split[i]);
+	}
+	g_string_append (str, "\\\\\\\n");
+	g_string_append_printf (str, "\\small{\\begin{tabularx}{130px}{Xl}\\texttt{%s} & \\texttt{%s}\\end{tabularx}}\n",
+				device_ids,
+				ch_shipping_postage_to_string (postage));
+	g_string_append (str, "\\end{document}\n");
+	ret = ch_shipping_print_latex_doc (str->str, "LP2844", &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to print label",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
+out:
+	if (str != NULL)
+		g_string_free (str, TRUE);
+	if (address_escaped != NULL)
+		g_string_free (address_escaped, TRUE);
+	g_strfreev (address_split);
+	g_free (device_ids);
+	g_free (comment);
+	g_free (address);
+	g_free (name);
 }
 
 /**
@@ -681,61 +854,27 @@ ch_shipping_print_invoices_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 static void
 ch_shipping_print_labels_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
+	gboolean checkbox;
 	gboolean ret;
-	gchar *cmd = NULL;
-	gchar *labels_data = NULL;
-	gchar *labels_template = NULL;
-	GError *error = NULL;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeView *treeview;
 
-	/* add the output header */
-	g_string_prepend (priv->output_csv,
-			  "name,address1,address2,address3,address4,address5,serial,shipping,cost,type\n");
-
-	/* dump the print data to a file */
-	labels_data = g_settings_get_string (priv->settings, "labels-data");
-	g_debug ("Writing to: %s", labels_data);
-	ret = g_file_set_contents (labels_data,
-				   priv->output_csv->str,
-				   -1,
-				   &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to write CSV file", error->message);
-		g_error_free (error);
-		goto out;
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	model = gtk_tree_view_get_model (treeview);
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_tree_model_get (model, &iter,
+				    COLUMN_CHECKBOX, &checkbox,
+				    -1);
+		if (checkbox)
+			ch_shipping_print_label (priv, model, &iter);
+		ret = gtk_tree_model_iter_next (model, &iter);
 	}
-
-	/* create the pdf */
-	labels_template = g_settings_get_string (priv->settings, "labels-template");
-	cmd = g_strdup_printf ("glabels-3-batch --output=/tmp/colorhug.pdf '%s'", labels_template);
-	g_debug ("Running: %s", cmd);
-	ret = g_spawn_command_line_sync (cmd,
-					 NULL,
-					 NULL,
-					 NULL,
-					 &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to create labels file", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* print the PDF */
-	ret = g_spawn_command_line_async ("evince /tmp/colorhug.pdf", &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to view pdf", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* clear the pending queue of things to print */
-	g_string_set_size (priv->output_csv, 0);
+	ch_shipping_refresh_orders (priv);
 
 	/* refresh status */
 	ch_shipping_refresh_status (priv);
-out:
-	g_free (cmd);
-	g_free (labels_template);
-	g_free (labels_data);
 }
 
 /**
@@ -871,6 +1010,8 @@ ch_shipping_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GtkTreeModel *model;
 	GtkTreeSelection *selection;
 	GtkTreeView *treeview;
+	guint32 order_id;
+	gchar *tracking = NULL;
 
 	/* get the order id of the selected item */
 	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
@@ -879,6 +1020,7 @@ ch_shipping_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	if (!ret)
 		goto out;
 	gtk_tree_model_get (model, &iter,
+			    COLUMN_ORDER_ID, &order_id,
 			    COLUMN_POSTAGE, &postage,
 			    -1);
 
@@ -898,17 +1040,73 @@ ch_shipping_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		gtk_widget_set_sensitive (widget, TRUE);
 	} else {
 		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_shipped_tracking"));
-		gtk_entry_set_text (GTK_ENTRY (widget), "");
+		tracking = ch_database_order_get_tracking (priv->database, order_id, NULL);
+		gtk_entry_set_text (GTK_ENTRY (widget), tracking != NULL ? tracking : "");
 		gtk_widget_set_sensitive (widget, TRUE);
 
 		/* setup state */
 		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_email"));
-		gtk_widget_set_sensitive (widget, FALSE);
+		gtk_widget_set_sensitive (widget, tracking != NULL);
 	}
 out:
+	g_free (tracking);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_shipped"));
 	gtk_widget_show (widget);
 }
+
+/**
+ * ch_shipping_tracking_button_cb:
+ **/
+static void
+ch_shipping_tracking_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	ChShippingPostage postage;
+	gboolean ret;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeSelection *selection;
+	GtkTreeView *treeview;
+
+	/* get the order id of the selected item */
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	selection = gtk_tree_view_get_selection (treeview);
+	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
+	if (!ret)
+		goto out;
+	gtk_tree_model_get (model, &iter,
+			    COLUMN_POSTAGE, &postage,
+			    -1);
+
+	/* clear existing */
+	if (postage == CH_SHIPPING_POSTAGE_UK ||
+	    postage == CH_SHIPPING_POSTAGE_EUROPE ||
+	    postage == CH_SHIPPING_POSTAGE_WORLD ||
+	    postage == CH_SHIPPING_POSTAGE_XUK ||
+	    postage == CH_SHIPPING_POSTAGE_XEUROPE ||
+	    postage == CH_SHIPPING_POSTAGE_XWORLD) {
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking_id"));
+		gtk_entry_set_text (GTK_ENTRY (widget), "n/a");
+		gtk_widget_set_sensitive (widget, FALSE);
+	} else {
+		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking_id"));
+		gtk_entry_set_text (GTK_ENTRY (widget), "");
+		gtk_widget_set_sensitive (widget, TRUE);
+	}
+out:
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_tracking"));
+	gtk_widget_show (widget);
+}
+
+/**
+ * ch_shipping_tracking_cancel_button_cb:
+ **/
+static void
+ch_shipping_tracking_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_tracking"));
+	gtk_widget_hide (widget);
+}
+
 
 /**
  * ch_shipping_shipped_cancel_button_cb:
@@ -1625,6 +1823,54 @@ out:
 }
 
 /**
+ * ch_shipping_tracking_set_button_cb:
+ **/
+static void
+ch_shipping_tracking_set_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	const gchar *tracking = NULL;
+	gboolean ret;
+	GError *error = NULL;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeSelection *selection;
+	GtkTreeView *treeview;
+	guint32 order_id;
+
+	/* get the order id of the selected item */
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	selection = gtk_tree_view_get_selection (treeview);
+	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
+	if (!ret)
+		goto out;
+	gtk_tree_model_get (model, &iter,
+			    COLUMN_ORDER_ID, &order_id,
+			    -1);
+
+	/* get tracking number */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking_id"));
+	tracking = gtk_entry_get_text (GTK_ENTRY (widget));
+
+	/* save to the database */
+	ret = ch_database_order_set_tracking (priv->database,
+					      order_id,
+					      tracking,
+					      &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to add tracking to order", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* refresh state */
+	ch_shipping_refresh_orders (priv);
+out:
+	/* buttons */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_tracking"));
+	gtk_widget_hide (widget);
+}
+
+/**
  * ch_shipping_row_activated_cb:
  **/
 static void
@@ -1658,7 +1904,7 @@ ch_shipping_row_activated_cb (GtkTreeView *treeview,
 
 	/* do something smart */
 	if (state == CH_ORDER_STATE_NEW) {
-		ch_shipping_queue_button_cb (NULL, priv);
+		//ch_shipping_queue_button_cb (NULL, priv);
 	} else if (state == CH_ORDER_STATE_PRINTED) {
 		ch_shipping_shipped_button_cb (NULL, priv);
 	} else {
@@ -1666,6 +1912,33 @@ ch_shipping_row_activated_cb (GtkTreeView *treeview,
 	}
 out:
 	return;
+}
+
+/**
+ * gpk_application_packages_installed_clicked_cb:
+ **/
+static void
+gpk_application_packages_installed_clicked_cb (GtkCellRendererToggle *cell, gchar *path_str, ChFactoryPrivate *priv)
+{
+	GtkTreeView *treeview;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	GtkTreePath *path;
+	gboolean checkbox;
+
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	model = gtk_tree_view_get_model (treeview);
+	path = gtk_tree_path_new_from_string (path_str);
+
+	/* get toggled iter */
+	gtk_tree_model_get_iter (model, &iter, path);
+	gtk_tree_model_get (model, &iter,
+			    COLUMN_CHECKBOX, &checkbox,
+			    -1);
+	gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+			    COLUMN_CHECKBOX, !checkbox,
+			    -1);
+	gtk_tree_path_free (path);
 }
 
 /**
@@ -1681,6 +1954,15 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
 	g_signal_connect (treeview, "row-activated",
 			  G_CALLBACK (ch_shipping_row_activated_cb), priv);
+
+
+	/* column for installed status */
+	renderer = gtk_cell_renderer_toggle_new ();
+	g_signal_connect (renderer, "toggled", G_CALLBACK (gpk_application_packages_installed_clicked_cb), priv);
+	column = gtk_tree_view_column_new_with_attributes (NULL, renderer,
+							   "active", COLUMN_CHECKBOX,
+							   NULL);
+	gtk_tree_view_append_column (treeview, column);
 
 	/* column for order_id */
 	column = gtk_tree_view_column_new ();
@@ -2003,9 +2285,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 		goto out;
 	}
 
-	/* this is the output csv */
-	priv->output_csv = g_string_new ("");
-
 	/* add application specific icons to search path */
 	gtk_icon_theme_append_search_path (gtk_icon_theme_get_default (),
 					   CH_DATA G_DIR_SEPARATOR_S "icons");
@@ -2035,9 +2314,12 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_print_invoices"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_print_invoices_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_queue"));
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_print_manifest"));
 	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_queue_button_cb), priv);
+			  G_CALLBACK (ch_shipping_print_manifest_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_set_tracking"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_tracking_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_refund"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_refund_button_cb), priv);
@@ -2065,6 +2347,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_cancel"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_shipped_cancel_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_tracking_cancel"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_tracking_cancel_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_cancel"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_cancel_button_cb), priv);
@@ -2074,6 +2359,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_edit"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_edit_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_tracking_set"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_tracking_set_button_cb), priv);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_invite_cancel"));
 	g_signal_connect (widget, "clicked",
@@ -2231,8 +2519,6 @@ main (int argc, char **argv)
 
 	g_main_loop_unref (priv->loop);
 	g_object_unref (priv->application);
-	if (priv->output_csv != NULL)
-		g_string_free (priv->output_csv, TRUE);
 	if (priv->builder != NULL)
 		g_object_unref (priv->builder);
 	if (priv->settings != NULL)
