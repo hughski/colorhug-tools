@@ -138,14 +138,13 @@ ch_shipping_find_by_id (GtkTreeModel *model,
 static void
 ch_shipping_refresh_status (ChFactoryPrivate *priv)
 {
+	gchar *label = NULL;
 	GError *error = NULL;
+	GPtrArray *queue = NULL;
 	GtkWidget *widget;
 	guint devices_left;
-	guint queue_size = 0;
-	GPtrArray *queue = NULL;
 
 	/* update status */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "label_status"));
 	devices_left = ch_database_device_get_number (priv->database, CH_DEVICE_STATE_CALIBRATED, &error);
 	if (devices_left == G_MAXUINT) {
 		ch_shipping_error_dialog (priv, "Failed to get number of devices", error->message);
@@ -160,11 +159,19 @@ ch_shipping_refresh_status (ChFactoryPrivate *priv)
 		g_error_free (error);
 		goto out;
 	}
-	queue_size = queue->len;
+	if (queue->len > 0) {
+		label = g_strdup_printf ("%i devices remaining to be sold, %i preorders",
+					 devices_left, queue->len);
+	} else {
+		label = g_strdup_printf ("%i devices remaining to be sold",
+					 devices_left);
+	}
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "label_status"));
+	gtk_label_set_text (GTK_LABEL (widget), label);
 out:
+	g_free (label);
 	if (queue != NULL)
 		g_ptr_array_unref (queue);
-	gtk_label_set_text (GTK_LABEL (widget), g_strdup_printf ("%i devices remaining to be sold, %i preorders", devices_left, queue_size));
 }
 
 /**
