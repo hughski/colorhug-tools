@@ -913,6 +913,7 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 	g_string_append (str, "\\usepackage{fontenc}\n");
 	g_string_append (str, "\\usepackage[hang,flushmargin]{footmisc} \n");
 	g_string_append (str, "\\geometry{papersize={50.8mm,50.8mm},total={49mm,48mm}}\n");
+	g_string_append (str, "\\renewcommand{\\familydefault}{\\sfdefault}\n");
 	g_string_append (str, "\\begin{document}\n");
 	g_string_append (str, "\\pagestyle{empty}\n");
 	if (postage == CH_SHIPPING_POSTAGE_UK ||
