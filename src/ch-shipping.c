@@ -1709,7 +1709,7 @@ skip:
 	}
 
 	/* get tracking number */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking_id"));
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking"));
 	tracking = gtk_entry_get_text (GTK_ENTRY (widget));
 
 	/* save to the database */
