@@ -405,7 +405,7 @@ ch_shipping_print_latex_doc (const gchar *str, const gchar *printer, GError **er
 		goto out;
 	if (exit_status != 0) {
 		ret = FALSE;
-		g_set_error_literal (error, 1, 0, "Failed to prepare invoice");
+		g_set_error_literal (error, 1, 0, "Failed to prepare latex document");
 		goto out;
 	}
 
@@ -458,6 +458,10 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 	g_string_append (str, "\\documentclass[11pt]{letter}");
 	g_string_append (str, "\\usepackage{geometry}");
 	g_string_append (str, "\\usepackage{graphicx}");
+	g_string_append (str, "\\usepackage{ucs}\n");
+	g_string_append (str, "\\usepackage[utf8x]{inputenc}\n");
+	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
+	g_string_append (str, "\\usepackage{fontenc}\n");
 	g_string_append (str, "\\geometry{papersize={50.8mm,50.8mm},total={50mm,48mm}}");
 	g_string_append (str, "\\begin{document}");
 	g_string_append (str, "\\pagestyle{empty}");
@@ -470,7 +474,7 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 	g_string_append (str, "\\end{document}");
 
 	/* print */
-	ret = ch_shipping_print_latex_doc (str->str, NULL, &error);
+	ret = ch_shipping_print_latex_doc (str->str, "LP2844", &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "failed to save file: %s", error->message);
 		g_error_free (error);
@@ -662,6 +666,31 @@ ch_shipping_print_invoices_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 				    -1);
 		if (checkbox)
 			ch_shipping_print_invoice (priv, model, &iter);
+		ret = gtk_tree_model_iter_next (model, &iter);
+	}
+}
+
+/**
+ * ch_shipping_print_cn22_button_cb:
+ **/
+static void
+ch_shipping_print_cn22_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	gboolean checkbox;
+	gboolean ret;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeView *treeview;
+
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	model = gtk_tree_view_get_model (treeview);
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_tree_model_get (model, &iter,
+				    COLUMN_CHECKBOX, &checkbox,
+				    -1);
+		if (checkbox)
+			ch_shipping_print_cn22 (priv, model, &iter);
 		ret = gtk_tree_model_iter_next (model, &iter);
 	}
 }
@@ -2361,6 +2390,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_print_invoices"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_print_invoices_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_print_cn22"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_print_cn22_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_print_manifest"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_print_manifest_button_cb), priv);
