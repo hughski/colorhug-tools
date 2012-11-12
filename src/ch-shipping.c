@@ -535,7 +535,7 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	g_string_append (str, "\\usepackage{fontenc}\n");
 	g_string_append (str, "\\usepackage{graphicx}\n");
 	g_string_append (str, "\\usepackage[margin=0.8in]{geometry}\n");
-	g_string_append (str, "\\usepackage[dvips]{hyperref}\n");
+	g_string_append (str, "\\usepackage{hyperref}\n");
 	g_string_append (str, "\\author{Richard Hughes}\n");
 	g_string_append (str, "\\title{ColorHug Invoice}\n");
 	g_string_append (str, "\\date{28/08/2012}\n");
