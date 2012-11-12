@@ -889,6 +889,15 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 			    COLUMN_DEVICE_IDS, &device_ids,
 			    -1);
 
+	/* replace escaped chars */
+	address = ch_shipping_strreplace (address, "$", "\\$");
+	address = ch_shipping_strreplace (address, "%", "\\%");
+	address = ch_shipping_strreplace (address, "_", "\\_");
+	address = ch_shipping_strreplace (address, "}", "\\}");
+	address = ch_shipping_strreplace (address, "{", "\\{");
+	address = ch_shipping_strreplace (address, "&", "\\&");
+	address = ch_shipping_strreplace (address, "#", "\\#");
+
 	address_split = g_strsplit (address, "|", -1);
 
 	/* update order status */
