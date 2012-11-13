@@ -455,16 +455,16 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 	}
 
 	str = g_string_new ("");
-	g_string_append (str, "\\documentclass[11pt]{letter}");
-	g_string_append (str, "\\usepackage{geometry}");
-	g_string_append (str, "\\usepackage{graphicx}");
+	g_string_append (str, "\\documentclass[11pt]{letter}\n");
+	g_string_append (str, "\\usepackage{geometry}\n");
+	g_string_append (str, "\\usepackage{graphicx}\n");
 	g_string_append (str, "\\usepackage{ucs}\n");
 	g_string_append (str, "\\usepackage[utf8x]{inputenc}\n");
 	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
 	g_string_append (str, "\\usepackage{fontenc}\n");
-	g_string_append (str, "\\geometry{papersize={50.8mm,50.8mm},total={50mm,48mm}}");
-	g_string_append (str, "\\begin{document}");
-	g_string_append (str, "\\pagestyle{empty}");
+	g_string_append (str, "\\geometry{papersize={50.8mm,50.8mm},total={50mm,48mm}}\n");
+	g_string_append (str, "\\begin{document}\n");
+	g_string_append (str, "\\pagestyle{empty}\n");
 	g_string_append (str, "\\centering");
 	if (ch_shipping_device_to_price (postage) == 60) {
 		g_string_append (str, "\\includegraphics[width=48mm]{/home/hughsie/Code/ColorHug/Documents/shipping60.png}");
