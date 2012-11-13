@@ -214,6 +214,7 @@ out:
 static void ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter);
 static void ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter);
 static void ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter);
+static void ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter);
 
 /**
  * ch_shipping_refresh_orders:
@@ -696,6 +697,34 @@ ch_shipping_print_cn22_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 }
 
 /**
+ * ch_shipping_mark_shipped_button_cb:
+ **/
+static void
+ch_shipping_mark_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	gboolean checkbox;
+	gboolean ret;
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+	GtkTreeView *treeview;
+
+	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
+	model = gtk_tree_view_get_model (treeview);
+	ret = gtk_tree_model_get_iter_first (model, &iter);
+	while (ret) {
+		gtk_tree_model_get (model, &iter,
+				    COLUMN_CHECKBOX, &checkbox,
+				    -1);
+		if (checkbox)
+			ch_shipping_email_send_email (priv, model, &iter);
+		ret = gtk_tree_model_iter_next (model, &iter);
+	}
+
+	/* refresh state */
+	ch_shipping_refresh_orders (priv);
+}
+
+/**
  * ch_shipping_print_manifest:
  **/
 static void
@@ -1117,73 +1146,6 @@ ch_shipping_preorder_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_queue"));
 	gtk_widget_show (widget);
 }
-
-/**
- * ch_shipping_shipped_button_cb:
- **/
-static void
-ch_shipping_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	ChShippingPostage postage;
-	gboolean ret;
-	GtkTreeIter iter;
-	GtkTreeModel *model;
-	GtkTreeSelection *selection;
-	GtkTreeView *treeview;
-	guint32 order_id;
-	gchar *tracking = NULL;
-
-	/* get the order id of the selected item */
-	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
-	selection = gtk_tree_view_get_selection (treeview);
-	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
-	if (!ret)
-		goto out;
-	gtk_tree_model_get (model, &iter,
-			    COLUMN_ORDER_ID, &order_id,
-			    COLUMN_POSTAGE, &postage,
-			    -1);
-
-	/* clear existing */
-	if (postage == CH_SHIPPING_POSTAGE_UK ||
-	    postage == CH_SHIPPING_POSTAGE_EUROPE ||
-	    postage == CH_SHIPPING_POSTAGE_WORLD ||
-	    postage == CH_SHIPPING_POSTAGE_XUK ||
-	    postage == CH_SHIPPING_POSTAGE_XEUROPE ||
-	    postage == CH_SHIPPING_POSTAGE_XWORLD) {
-		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_shipped_tracking"));
-		gtk_entry_set_text (GTK_ENTRY (widget), "n/a");
-		gtk_widget_set_sensitive (widget, FALSE);
-
-		/* setup state */
-		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_email"));
-		gtk_widget_set_sensitive (widget, TRUE);
-	} else {
-		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_shipped_tracking"));
-		tracking = ch_database_order_get_tracking (priv->database, order_id, NULL);
-		gtk_entry_set_text (GTK_ENTRY (widget), tracking != NULL ? tracking : "");
-		gtk_widget_set_sensitive (widget, TRUE);
-
-		/* setup state */
-		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_email"));
-		gtk_widget_set_sensitive (widget, tracking != NULL);
-	}
-out:
-	g_free (tracking);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_shipped"));
-	gtk_widget_show (widget);
-}
-
-/**
- * ch_shipping_shipped_cancel_button_cb:
- **/
-static void
-ch_shipping_shipped_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_shipped"));
-	gtk_widget_hide (widget);
-}
-
 
 /**
  * ch_shipping_comment_button_cb:
@@ -1748,10 +1710,10 @@ out:
 }
 
 /**
- * ch_shipping_shipped_email_button_cb:
+ * ch_shipping_email_send_email:
  **/
 static void
-ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
 	ChShippingPostage postage;
 	const gchar *tracking_number = NULL;
@@ -1762,28 +1724,16 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gchar *from = NULL;
 	GError *error = NULL;
 	GString *str = NULL;
-	GtkTreeIter iter;
-	GtkTreeModel *model;
-	GtkTreeSelection *selection;
-	GtkTreeView *treeview;
 	guint32 order_id;
 
 	/* get the order id of the selected item */
-	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
-	selection = gtk_tree_view_get_selection (treeview);
-	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
-	if (!ret)
-		goto out;
-	gtk_tree_model_get (model, &iter,
+	gtk_tree_model_get (model, iter,
 			    COLUMN_ORDER_ID, &order_id,
 			    COLUMN_POSTAGE, &postage,
 			    COLUMN_EMAIL, &email,
 			    COLUMN_DEVICE_IDS, &device_ids,
+			    COLUMN_TRACKING, &tracking_number,
 			    -1);
-
-	/* get tracking number */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_shipped_tracking"));
-	tracking_number = gtk_entry_get_text (GTK_ENTRY (widget));
 
 	/* write email */
 	str = g_string_new ("");
@@ -1817,19 +1767,15 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_string_append (str, "Ania Hughes\n");
 
 	/* actually send the email */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "checkbutton_shipped_email"));
-	ret = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-	if (ret) {
-		ret = ch_shipping_send_email (from,
-					      email,
-					      "Your ColorHug has been dispatched!",
-					      str->str,
-					      &error);
-		if (!ret) {
-			ch_shipping_error_dialog (priv, "Failed to send email", error->message);
-			g_error_free (error);
-			goto out;
-		}
+	ret = ch_shipping_send_email (from,
+				      email,
+				      "Your ColorHug has been dispatched!",
+				      str->str,
+				      &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to send email", error->message);
+		g_error_free (error);
+		goto out;
 	}
 
 	/* save to the database */
@@ -1854,9 +1800,6 @@ ch_shipping_shipped_email_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		g_error_free (error);
 		goto out;
 	}
-
-	/* refresh state */
-	ch_shipping_refresh_orders (priv);
 out:
 	g_free (device_ids);
 	g_free (from);
@@ -1864,9 +1807,6 @@ out:
 	g_free (cmd);
 	if (str != NULL)
 		g_string_free (str, TRUE);
-	/* buttons */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_shipped"));
-	gtk_widget_hide (widget);
 }
 
 /**
@@ -1952,8 +1892,6 @@ ch_shipping_row_activated_cb (GtkTreeView *treeview,
 	/* do something smart */
 	if (state == CH_ORDER_STATE_NEW) {
 		//ch_shipping_queue_button_cb (NULL, priv);
-	} else if (state == CH_ORDER_STATE_PRINTED) {
-		ch_shipping_shipped_button_cb (NULL, priv);
 	} else {
 		ch_shipping_comment_button_cb (NULL, priv);
 	}
@@ -2262,61 +2200,6 @@ out:
 }
 
 /**
- * ch_shipping_tracking_entry_changed_cb:
- **/
-static void
-ch_shipping_tracking_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, ChFactoryPrivate *priv)
-{
-	const gchar *value;
-	gboolean ret = FALSE;
-	guint len = 0;
-
-	/* set to defaults */
-	value = gtk_entry_get_text (GTK_ENTRY (widget));
-	if (value != NULL)
-		len = strlen (value);
-	if (len != 3 && len != 13)
-		goto out;
-
-	/* woohoo */
-	ret = TRUE;
-out:
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_email"));
-	gtk_widget_set_sensitive (widget, ret);
-
-	/* focus button */
-	if (len == 13)
-		gtk_widget_grab_focus (widget);
-}
-
-/**
- * ch_shipping_treeview_clicked_cb:
- **/
-static void
-ch_shipping_treeview_clicked_cb (GtkTreeSelection *selection, ChFactoryPrivate *priv)
-{
-	gboolean ret;
-	gchar *tracking_number = NULL;
-	GtkTreeIter iter;
-	GtkTreeModel *model;
-	GtkWidget *widget;
-
-	/* get the order id of the selected item */
-	ret = gtk_tree_selection_get_selected (selection, &model, &iter);
-	if (!ret)
-		goto out;
-	gtk_tree_model_get (model, &iter,
-			    COLUMN_TRACKING, &tracking_number,
-			    -1);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_shipped"));
-	gtk_widget_set_sensitive (widget, tracking_number[0] == '\0');
-	gtk_widget_set_sensitive (widget, TRUE);
-out:
-	/* buttons */
-	g_free (tracking_number);
-}
-
-/**
  * ch_shipping_radio_shippping_changed_cb:
  **/
 static void
@@ -2353,7 +2236,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	gchar *filename = NULL;
 	GError *error = NULL;
 	gint retval;
-	GtkTreeSelection *selection;
 	GtkWidget *main_window;
 	GtkWidget *widget;
 	GtkStyleContext *context;
@@ -2403,6 +2285,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_print_cn22"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_print_cn22_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_mark_shipped"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_mark_shipped_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_print_manifest"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_print_manifest_button_cb), priv);
@@ -2412,9 +2297,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_order"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_order_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_shipped"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_shipped_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_comment"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_button_cb), priv);
@@ -2430,15 +2312,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_order_add"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_order_add_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_cancel"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_shipped_cancel_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_cancel"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_cancel_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_shipped_email"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_shipped_email_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_edit"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_edit_button_cb), priv);
@@ -2528,16 +2404,8 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	g_signal_connect (widget, "notify::text",
 			  G_CALLBACK (ch_shipping_paypal_entry_changed_cb), priv);
 
-	/* don't allow to send without tracking number */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_shipped_tracking"));
-	g_signal_connect (widget, "notify::text",
-			  G_CALLBACK (ch_shipping_tracking_entry_changed_cb), priv);
-
 	/* disable buttons based on the order state */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "treeview_orders"));
-	selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (widget));
-	g_signal_connect (selection, "changed",
-			  G_CALLBACK (ch_shipping_treeview_clicked_cb), priv);
 
 	/* make devices toolbar sexy */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder,
