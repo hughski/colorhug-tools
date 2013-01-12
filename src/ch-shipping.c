@@ -427,6 +427,48 @@ out:
 }
 
 /**
+ * ch_shipping_print_svg_doc:
+ **/
+static gboolean
+ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **error)
+{
+	const gchar *argv_latex[] = { "rsvg-convert", "-f", "pdf", "-o", "/tmp/temp-svg.pdf", "/tmp/temp.svg", NULL };
+	gboolean ret;
+	gint exit_status = 0;
+	GPtrArray *argv_lpr = NULL;
+
+	/* save */
+	ret = g_file_set_contents ("/tmp/temp.svg", str, -1, error);
+	if (!ret)
+		goto out;
+
+	/* convert to pdf */
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
+	if (!ret)
+		goto out;
+	if (exit_status != 0) {
+		ret = FALSE;
+		g_set_error_literal (error, 1, 0, "Failed to prepare latex document");
+		goto out;
+	}
+
+	/* send to the printer */
+	argv_lpr = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
+	if (printer != NULL)
+		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
+	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp-svg.pdf"));
+	g_ptr_array_add (argv_lpr, NULL);
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
+	if (!ret)
+		goto out;
+out:
+	if (argv_lpr != NULL)
+		g_ptr_array_unref (argv_lpr);
+	return ret;
+}
+
+/**
  * ch_shipping_print_cn22:
  **/
 static void
@@ -724,17 +766,55 @@ ch_shipping_mark_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	ch_shipping_refresh_orders (priv);
 }
 
+static guint
+_g_string_replace (GString *string, const gchar *search, const gchar *replace)
+{
+	gchar *tmp;
+	guint cnt = 0;
+	guint replace_len;
+	guint search_len;
+
+	search_len = strlen (search);
+	replace_len = strlen (replace);
+
+	do {
+		tmp = g_strstr_len (string->str, -1, search);
+		if (tmp == NULL)
+			goto out;
+
+		/* reallocate the string if required */
+		if (search_len > replace_len) {
+			g_string_erase (string,
+					tmp - string->str,
+					search_len - replace_len);
+		}
+		if (search_len < replace_len) {
+			g_string_insert_len (string,
+					     tmp - string->str,
+					     search,
+					     replace_len - search_len);
+		}
+
+		/* just memcmp in the new string */
+		memcpy (tmp, replace, replace_len);
+		cnt++;
+	} while (TRUE);
+out:
+	return cnt;
+}
+
 /**
  * ch_shipping_print_manifest:
  **/
 static void
-ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *model, GtkTreeIter *iter)
+ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *model, GtkTreeIter *iter, guint cnt)
 {
 	ChShippingPostage postage;
 	gchar *address = NULL;
 	gchar **address_split = NULL;
 	gchar *device_ids = NULL;
 	gchar *name = NULL;
+	gchar *tmp;
 	gchar *tracking;
 	guint32 order_id;
 	guint device_price;
@@ -750,16 +830,9 @@ ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *
 			    -1);
 
 	/* replace escaped chars */
-	address = ch_shipping_strreplace (address, "$", "\\$");
-	address = ch_shipping_strreplace (address, "%", "\\%");
-	address = ch_shipping_strreplace (address, "_", "\\_");
-	address = ch_shipping_strreplace (address, "}", "\\}");
-	address = ch_shipping_strreplace (address, "{", "\\{");
-	address = ch_shipping_strreplace (address, "&", "\\&");
-	address = ch_shipping_strreplace (address, "#", "\\#");
+//	address = ch_shipping_strreplace (address, "&", "\\&");
 
 	address_split = g_strsplit (address, "|", -1);
-//	postage_price = ch_shipping_postage_to_price (postage);
 	device_price = ch_shipping_device_to_price (postage);
 
 	i = g_strv_length (address_split);
@@ -769,14 +842,23 @@ ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *
 		i--;
 	if (g_strcmp0 (address_split[i-1], " ") == 0)
 		i--;
-	g_string_append_printf (str, " %s, %s & %s & %s & \\pounds %i & %s & %s \\\\\\hline\n",
-				address_split[i-2], address_split[i-1],
-				address_split[0],
-				ch_shipping_postage_to_service (postage),
-				device_price,
-				tracking[0] != '\0' ? tracking : "n/a",
-				device_ids);
-//out:
+
+	tmp = g_strdup_printf ("$SERVICE%02i$", cnt);
+	_g_string_replace (str, tmp, ch_shipping_postage_to_service (postage));
+	g_free (tmp);
+	tmp = g_strdup_printf ("$POSTCODE%02i$", cnt);
+	_g_string_replace (str, tmp, g_strdup_printf ("%s, %s", address_split[i-2], address_split[i-1]));
+	g_free (tmp);
+	tmp = g_strdup_printf ("$BUILDINGNAME%02i$", cnt);
+	_g_string_replace (str, tmp, address_split[0]);
+	g_free (tmp);
+	tmp = g_strdup_printf ("$VALUE%02i$", cnt);
+	_g_string_replace (str, tmp, g_strdup_printf ("£%i", device_price));
+	g_free (tmp);
+	tmp = g_strdup_printf ("$BARCODE%02i$", cnt);
+	_g_string_replace (str, tmp, tracking[0] != '\0' ? tracking : "n/a");
+	g_free (tmp);
+
 	g_free (name);
 	g_free (tracking);
 	g_free (address);
@@ -801,37 +883,29 @@ ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	guint i;
 	GError *error = NULL;
 	GDateTime *date;
+	gchar *tmp;
 
+	/* load svg data */
+	str = g_slice_new (GString);
+	ret = g_file_get_contents ("/home/hughsie/Code/ColorHug/DropAndGo/template.svg",
+				   &str->str,
+				   &str->len,
+				   &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "failed to open file: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+	str->allocated_len = str->len + 1;
+
+	/* do replacements */
 	date = g_date_time_new_now_local ();
-	str = g_string_new ("");
-
-	g_string_append (str, "\\documentclass[landscape,a4paper,10pt]{article}\n");
-	g_string_append (str, "\\usepackage[utf8]{inputenc}\n");
-	g_string_append (str, "\\usepackage[landscape,margin=0.5in]{geometry}\n");
-	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
-	g_string_append (str, "\\usepackage{graphicx}\n");
-	g_string_append (str, "\\author{Richard Hughes}\n");
-	g_string_append (str, "\\title{ColorHug Manifest}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\pagestyle{empty}\n");
-	g_string_append (str, "\\renewcommand{\\familydefault}{\\sfdefault}\n");
-	g_string_append (str, "\\newcommand{\\mc}[3]{\\multicolumn{#1}{#2}{#3}}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\begin{document}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\begin{LARGE}\n");
-	g_string_append (str, "\\begin{tabular}{lll}\n");
-	g_string_append (str, "\\includegraphics[scale=0.25]{/home/hughsie/Code/ColorHug/Documents/post-office.png} \\hspace{40px} & \\mc{2}{l}{\\includegraphics[scale=0.25]{/home/hughsie/Code/ColorHug/Documents/drop-and-go.png}}\\\\\n");
-	g_string_append (str, "& Company/Customer name: Hughski Limited \\hspace{50px} & Customer Number: 19346790\n");
-	g_string_append (str, "\\end{tabular}\n");
-	g_string_append (str, "\\end{LARGE}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\def\\arraystretch{1.5}\n");
-	g_string_append (str, "\\begin{large}\n");
-	g_string_append (str, "\\begin{center}\n");
-	g_string_append (str, "\\begin{tabular}{|c|c|c|c|c|c|c|}\\hline\n");
-	g_string_append (str, "\\mc{7}{|c|}{\\textbf{ITEMS THAT REQUIRE A CERTIFICATE OF POSTING INCLUDING ALL BARCODED PRODUCTS}}\\\\\\hline\n");
-	g_string_append (str, "\\textbf{Item} & \\textbf{Post Code} & \\textbf{Building Name or No.} & \\textbf{Service Required} & \\textbf{Value} & \\textbf{Barcode number} & \\textbf{Information}\\\\\\hline\n");
+	tmp = g_strdup_printf ("%02i/%02i/%04i",
+				g_date_time_get_day_of_month (date),
+				g_date_time_get_month (date),
+				g_date_time_get_year (date));
+	_g_string_replace (str, "$DATE$", tmp);
+	g_free (tmp);
 
 	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
 	model = gtk_tree_view_get_model (treeview);
@@ -841,43 +915,35 @@ ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 				    COLUMN_CHECKBOX, &checkbox,
 				    -1);
 		if (checkbox) {
-			g_string_append_printf (str, "%i. & ", cnt + 1);
-			ch_shipping_print_manifest (priv, str, model, &iter);
+			ch_shipping_print_manifest (priv, str, model, &iter, cnt + 1);
 			cnt++;
 		}
 		ret = gtk_tree_model_iter_next (model, &iter);
 	}
 
-	for (i = cnt; i < 10; i++)
-		g_string_append_printf (str, "%i. & - & - & - & - & - & - \\\\\\hline\n", i + 1);
+	/* blank out the others */
+	for (i = cnt + 1; i < 16; i++) {
+		tmp = g_strdup_printf ("$SERVICE%02i$", i);
+		_g_string_replace (str, tmp, "-");
+		g_free (tmp);
+		tmp = g_strdup_printf ("$POSTCODE%02i$", i);
+		_g_string_replace (str, tmp, "-");
+		g_free (tmp);
+		tmp = g_strdup_printf ("$BUILDINGNAME%02i$", i);
+		_g_string_replace (str, tmp, "-");
+		g_free (tmp);
+		tmp = g_strdup_printf ("$VALUE%02i$", i);
+		_g_string_replace (str, tmp, "-");
+		g_free (tmp);
+		tmp = g_strdup_printf ("$BARCODE%02i$", i);
+		_g_string_replace (str, tmp, "-");
+		g_free (tmp);
+	}
 
-	g_string_append (str, "\\mc{7}{l}{} \\\\\\hline\n");
-	g_string_append (str, "\n");
-	g_string_append_printf (str, "\\mc{5}{|l}{} & \\textbf{TOTAL NUMBER} & %i \\\\\\hline", cnt);
-	g_string_append (str, "\n");
-	g_string_append (str, "\\mc{6}{|l|}{\\textbf{NUMBER OF ITEMS THAT DO NOT NEED A CERT OF POSTING (not including those listed above)}} & 0\\\\\\hline\n");
-	g_string_append_printf (str, "\\mc{6}{|l|}{\\textbf{TOTAL NUMBER OF ITEMS HANDED OVER}} & %i\\\\\\hline", cnt);
-	g_string_append (str, "\\end{tabular}\n");
-	g_string_append (str, "\\end{center}\n");
-	g_string_append (str, "\\end{large}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\begin{LARGE}\n");
-	g_string_append (str, "\\begin{center}\n");
-	g_string_append (str, "\\begin{tabular}{lll}\n");
-	g_string_append_printf (str, "Date: %02i/%02i/%04i \\hspace{30px} & Customer Signature: \\raisebox{-0.5\\height}{\\includegraphics[scale=0.80]{/home/hughsie/Documents/Secure/signature.png}} \\hspace{30px} & Date Stamp: \\raisebox{-0.5\\height}{\\includegraphics[scale=0.25]{/home/hughsie/Code/ColorHug/Documents/date-stamp.png}}\n",
-				g_date_time_get_day_of_month (date),
-				g_date_time_get_month (date),
-				g_date_time_get_year (date));
-	g_string_append (str, "\\end{tabular}\n");
-	g_string_append (str, "\\end{center}\n");
-	g_string_append (str, "\\end{LARGE}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\end{document}\n");
-
-	/* print */
-	ret = ch_shipping_print_latex_doc (str->str, NULL, &error);
+	/* print pdf of svg */
+	ret = ch_shipping_print_svg_doc (str->str, NULL, &error);
 	if (!ret) {
-		ch_shipping_error_dialog (priv, "failed to save file: %s", error->message);
+		ch_shipping_error_dialog (priv, "failed to print file: %s", error->message);
 		g_error_free (error);
 		goto out;
 	}
