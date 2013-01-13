@@ -1732,19 +1732,6 @@ skip:
 	g_string_append (str, "\n");
 	g_string_append (str, "Ania Hughes\n");
 
-	/* actually send the email */
-	from = g_settings_get_string (priv->settings, "invoice-sender");
-	ret = ch_shipping_send_email (from,
-				      email,
-				      "Your ColorHug order has been received",
-				      str->str,
-				      &error);
-	if (!ret) {
-		ch_shipping_error_dialog (priv, "Failed to send email", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
 	/* get tracking number */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking"));
 	tracking = gtk_entry_get_text (GTK_ENTRY (widget));
@@ -1756,6 +1743,19 @@ skip:
 					      &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "Failed to add tracking to order", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* actually send the email */
+	from = g_settings_get_string (priv->settings, "invoice-sender");
+	ret = ch_shipping_send_email (from,
+				      email,
+				      "Your ColorHug order has been received",
+				      str->str,
+				      &error);
+	if (!ret) {
+		ch_shipping_error_dialog (priv, "Failed to send email", error->message);
 		g_error_free (error);
 		goto out;
 	}
