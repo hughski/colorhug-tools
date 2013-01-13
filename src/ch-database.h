@@ -123,6 +123,8 @@ gboolean	 ch_database_queue_promote	(ChDatabase	*database,
 gboolean	 ch_database_queue_remove	(ChDatabase	*database,
 						 const gchar	*email,
 						 GError		**error);
+gchar 		*ch_database_get_next_tracking_number (ChDatabase	*database,
+						 GError		**error);
 
 G_END_DECLS
 

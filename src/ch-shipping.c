@@ -1924,6 +1924,31 @@ out:
 }
 
 /**
+ * ch_shipping_tracking_button_cb:
+ **/
+static void
+ch_shipping_tracking_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
+{
+	gchar *tracking_number = NULL;
+	GError *error = NULL;
+
+	/* get from the database */
+	tracking_number = ch_database_get_next_tracking_number (priv->database,
+								&error);
+	if (tracking_number == NULL) {
+		ch_shipping_error_dialog (priv, "Failed to get next tracking number", error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	/* get tracking number */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_comment_text"));
+	gtk_entry_set_text (GTK_ENTRY (widget), tracking_number);
+out:
+	g_free (tracking_number);
+}
+
+/**
  * ch_shipping_row_activated_cb:
  **/
 static void
@@ -2384,6 +2409,9 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_edit"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_edit_button_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_tracking"));
+	g_signal_connect (widget, "clicked",
+			  G_CALLBACK (ch_shipping_tracking_button_cb), priv);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_invite_cancel"));
 	g_signal_connect (widget, "clicked",
