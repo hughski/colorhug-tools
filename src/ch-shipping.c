@@ -432,7 +432,11 @@ out:
 static gboolean
 ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **error)
 {
-	const gchar *argv_latex[] = { "rsvg-convert", "-f", "pdf", "-o", "/tmp/temp-svg.pdf", "/tmp/temp.svg", NULL };
+	const gchar *argv_latex[] = { "rsvg-convert",
+				      "--zoom=0.8",
+				      "--format=pdf",
+				      "--output=/tmp/temp-svg.pdf",
+				      "/tmp/temp.svg", NULL };
 	gboolean ret;
 	gint exit_status = 0;
 	GPtrArray *argv_lpr = NULL;
