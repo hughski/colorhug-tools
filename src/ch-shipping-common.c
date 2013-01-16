@@ -82,23 +82,23 @@ ch_shipping_postage_to_service (ChShippingPostage postage)
 		break;
 	case CH_SHIPPING_POSTAGE_EUROPE:
 	case CH_SHIPPING_POSTAGE_XEUROPE:
-		return "A sm pkt 100g";
+		return "A sm pkt 145g";
 		break;
 	case CH_SHIPPING_POSTAGE_WORLD:
 	case CH_SHIPPING_POSTAGE_XWORLD:
-		return "A sm pkt 100g";
+		return "A sm pkt 145g";
 		break;
 	case CH_SHIPPING_POSTAGE_UK_SIGNED:
 	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
-		return "1RSF 100g";
+		return "1RSF 145g";
 		break;
 	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
 	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
-		return "AISF 100g";
+		return "AISF 145g";
 		break;
 	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
 	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
-		return "AISF 100g";
+		return "AISF 145g";
 		break;
 	default:
 		g_assert_not_reached ();

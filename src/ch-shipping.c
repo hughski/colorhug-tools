@@ -641,7 +641,7 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	g_string_append (str, "\\begin{center}\n");
 	g_string_append (str, "\\begin{tabular}{|l|l|c|c|}\\hline\n");
 	g_string_append (str, "\\mc{1}{|c|}{\\textbf{Quantity}} & \\mc{1}{c|}{\\textbf{Product}} & \\textbf{Cost} & \\textbf{Total}\\\\\\hline\n");
-	g_string_append_printf (str, "\\mc{1}{|c|}{1} & ColorHug (inc. USB and LiveCD) & \\pounds%i.00 & \\pounds%i.00\\\\\\hline\n",
+	g_string_append_printf (str, "\\mc{1}{|c|}{1} & ColorHug (inc. elastic strap, USB and LiveCD) & \\pounds%i.00 & \\pounds%i.00\\\\\\hline\n",
 				device_price, device_price);
 	g_string_append_printf (str, " & Delivery & \\pounds%i.00 & \\pounds%i.00\\\\\\hline\n", postage_price, postage_price);
 	g_string_append_printf (str, " &  &  & \\textbf{\\pounds%i.00}\\\\\\hline\n", device_price + postage_price);
