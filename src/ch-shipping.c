@@ -1946,7 +1946,7 @@ ch_shipping_tracking_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 
 	/* get tracking number */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_comment_text"));
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking"));
 	gtk_entry_set_text (GTK_ENTRY (widget), tracking_number);
 out:
 	g_free (tracking_number);
