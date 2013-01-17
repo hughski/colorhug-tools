@@ -928,19 +928,19 @@ ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* blank out the others */
 	for (i = cnt + 1; i < 16; i++) {
 		tmp = g_strdup_printf ("$SERVICE%02i$", i);
-		_g_string_replace (str, tmp, "-");
+		_g_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$POSTCODE%02i$", i);
-		_g_string_replace (str, tmp, "-");
+		_g_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$BUILDINGNAME%02i$", i);
-		_g_string_replace (str, tmp, "-");
+		_g_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$VALUE%02i$", i);
-		_g_string_replace (str, tmp, "-");
+		_g_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$BARCODE%02i$", i);
-		_g_string_replace (str, tmp, "-");
+		_g_string_replace (str, tmp, "");
 		g_free (tmp);
 	}
 
