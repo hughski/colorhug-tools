@@ -1,0 +1,76 @@
+\documentclass[a4paper,10pt,oneside]{letter}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage[british,UKenglish]{babel}
+\usepackage{fontenc}
+\usepackage{graphicx}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{hyperref}
+\author{Richard Hughes}
+\title{HugStrap Invoice}
+\date{28/08/2012}
+\thispagestyle{empty}
+\pagestyle{empty}
+\renewcommand{\familydefault}{\sfdefault}
+
+\begin{document}
+\large
+\renewcommand{\arraystretch}{1.5}
+
+\begin{minipage}[t]{4in}
+\textit{Customer Address:}\\
+$NAME$\\
+$ADDRESS1$\\
+$ADDRESS2$\\
+$ADDRESS3$\\
+$ADDRESS4$\\
+$ADDRESS5$\\
+\end{minipage}
+\begin{minipage}[t]{2in}
+\textit{Supplier Address:}\\
+Hughski Limited\\
+9 Sidmouth Avenue\\
+Isleworth\\
+Middlesex\\
+TW7 4DW
+\end{minipage}
+
+Invoice number: \texttt{$ORDER$}\\
+
+\begin{flushright}
+ \today
+\end{flushright}
+
+How to use your complimentary HugStrap:
+
+\begin{itemize}
+\item Unpeel the Velcro from the end furthest from the buckle.
+\item Feed the end of the strap through the buckle so that it forms a loop with the soft side on the outside.
+\item Stick the Velcro about half way around the ring approximately the size of your screen.
+\item Put the strap on the screen and adjust it so you can pull the middle of the strap away from the center of the screen about 5cm. Please do this carefuly as excess pressure could damage your screen.
+\item Slide your ColorHug under the strap when directed by the calibration software.
+\end{itemize}
+
+If you want to keep up to date with our new developments then please follow our ColorHug Google+ page or join our colorhug-users mailing list.
+
+{%
+\newcommand{\mc}[3]{\multicolumn{#1}{#2}{#3}}
+\begin{center}
+\begin{tabular}{|l|l|c|c|}\hline
+\mc{1}{|c|}{\textbf{Quantity}} & \mc{1}{c|}{\textbf{Product}} & \textbf{Cost} & \textbf{Total}\\\hline
+\mc{1}{|c|}{1} & HugStrap\hspace{50mm} & \pounds0.00 & \pounds0.00\\\hline
+ & Delivery & \pounds$POSTAGE_PRICE$ & \pounds$POSTAGE_PRICE$\\\hline
+ &  &  & \textbf{\pounds$POSTAGE_PRICE$}\\\hline
+\end{tabular}
+\end{center}
+}%
+
+\vspace{10px}
+\hspace{50px}Many thanks,
+
+\hspace{75px}\includegraphics{/home/hughsie/Documents/Secure/signature.png}
+
+\hspace{100px}Richard Hughes
+
+\vspace{20px}
+\end{document}

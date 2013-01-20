@@ -22,13 +22,168 @@
 #include "config.h"
 
 #include <glib.h>
+#include <string.h>
 
 #include "ch-shipping-common.h"
 
 /**
+ * ch_shipping_string_load:
+ **/
+GString *
+ch_shipping_string_load (const gchar *filename, GError **error)
+{
+	gboolean ret;
+	gchar *data_tmp;
+	gsize len;
+	GString *str = NULL;
+
+	/* open the file */
+	ret = g_file_get_contents (filename,
+				   &data_tmp,
+				   &len,
+				   error);
+	if (!ret)
+		goto out;
+
+	/* steal the char data */
+	str = g_slice_new (GString);
+	str->str = data_tmp,
+	str->len = len;
+	str->allocated_len = str->len + 1;
+	str = g_string_new (data_tmp);
+out:
+	return str;
+}
+
+guint
+ch_shipping_string_replace (GString *string, const gchar *search, const gchar *replace)
+{
+	gchar *tmp;
+	guint cnt = 0;
+	guint replace_len;
+	guint search_len;
+
+	search_len = strlen (search);
+	replace_len = strlen (replace);
+
+	do {
+		tmp = g_strstr_len (string->str, -1, search);
+		if (tmp == NULL)
+			goto out;
+
+		/* reallocate the string if required */
+		if (search_len > replace_len) {
+			g_string_erase (string,
+					tmp - string->str,
+					search_len - replace_len);
+		}
+		if (search_len < replace_len) {
+			g_string_insert_len (string,
+					     tmp - string->str,
+					     search,
+					     replace_len - search_len);
+		}
+
+		/* just memcmp in the new string */
+		memcpy (tmp, replace, replace_len);
+		cnt++;
+	} while (TRUE);
+out:
+	return cnt;
+}
+
+/**
+ * ch_shipping_print_latex_doc:
+ **/
+gboolean
+ch_shipping_print_latex_doc (const gchar *str, const gchar *printer, GError **error)
+{
+	const gchar *argv_latex[] = { "pdflatex", "/tmp/temp.tex", NULL };
+	gboolean ret;
+	gint exit_status = 0;
+	GPtrArray *argv_lpr = NULL;
+
+	/* save */
+	ret = g_file_set_contents ("/tmp/temp.tex", str, -1, error);
+	if (!ret)
+		goto out;
+
+	/* convert to pdf */
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
+	if (!ret)
+		goto out;
+	if (exit_status != 0) {
+		ret = FALSE;
+		g_set_error_literal (error, 1, 0, "Failed to prepare latex document");
+		goto out;
+	}
+
+	/* send to the printer */
+	argv_lpr = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
+	if (printer != NULL)
+		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
+	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp.pdf"));
+	g_ptr_array_add (argv_lpr, NULL);
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
+	if (!ret)
+		goto out;
+out:
+	if (argv_lpr != NULL)
+		g_ptr_array_unref (argv_lpr);
+	return ret;
+}
+
+/**
+ * ch_shipping_print_svg_doc:
+ **/
+gboolean
+ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **error)
+{
+	const gchar *argv_latex[] = { "rsvg-convert",
+				      "--zoom=0.8",
+				      "--format=pdf",
+				      "--output=/tmp/temp-svg.pdf",
+				      "/tmp/temp.svg", NULL };
+	gboolean ret;
+	gint exit_status = 0;
+	GPtrArray *argv_lpr = NULL;
+
+	/* save */
+	ret = g_file_set_contents ("/tmp/temp.svg", str, -1, error);
+	if (!ret)
+		goto out;
+
+	/* convert to pdf */
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
+	if (!ret)
+		goto out;
+	if (exit_status != 0) {
+		ret = FALSE;
+		g_set_error_literal (error, 1, 0, "Failed to prepare latex document");
+		goto out;
+	}
+
+	/* send to the printer */
+	argv_lpr = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
+	if (printer != NULL)
+		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
+	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp-svg.pdf"));
+	g_ptr_array_add (argv_lpr, NULL);
+	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
+	if (!ret)
+		goto out;
+out:
+	if (argv_lpr != NULL)
+		g_ptr_array_unref (argv_lpr);
+	return ret;
+}
+
+/**
  * ch_shipping_postage_to_price:
  **/
-guint
+gdouble
 ch_shipping_postage_to_price (ChShippingPostage postage)
 {
 	switch (postage) {
@@ -37,27 +192,32 @@ ch_shipping_postage_to_price (ChShippingPostage postage)
 		break;
 	case CH_SHIPPING_POSTAGE_UK:
 	case CH_SHIPPING_POSTAGE_XUK:
-		return 2;
+		return 2.0f;
 		break;
 	case CH_SHIPPING_POSTAGE_EUROPE:
 	case CH_SHIPPING_POSTAGE_XEUROPE:
-		return 3;
+		return 3.0f;
 		break;
 	case CH_SHIPPING_POSTAGE_WORLD:
 	case CH_SHIPPING_POSTAGE_XWORLD:
-		return 4;
+		return 4.0f;
 		break;
 	case CH_SHIPPING_POSTAGE_UK_SIGNED:
 	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
-		return 7;
+		return 7.0f;
 		break;
 	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
 	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
-		return 8;
+		return 8.0f;
 		break;
 	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
 	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
-		return 9;
+		return 9.0f;
+		break;
+	case CH_SHIPPING_POSTAGE_AUK:
+	case CH_SHIPPING_POSTAGE_AEUROPE:
+	case CH_SHIPPING_POSTAGE_AWORLD:
+		return 3.5f;
 		break;
 	default:
 		g_assert_not_reached ();
@@ -100,6 +260,15 @@ ch_shipping_postage_to_service (ChShippingPostage postage)
 	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
 		return "AISF 145g";
 		break;
+	case CH_SHIPPING_POSTAGE_AUK:
+		return "1c LL";
+		break;
+	case CH_SHIPPING_POSTAGE_AEUROPE:
+		return "A sm pkt 65g";
+		break;
+	case CH_SHIPPING_POSTAGE_AWORLD:
+		return "A sm pkt 65g";
+		break;
 	default:
 		g_assert_not_reached ();
 		break;
@@ -132,6 +301,11 @@ ch_shipping_device_to_price (ChShippingPostage postage)
 	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
 	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
 		return 60;
+		break;
+	case CH_SHIPPING_POSTAGE_AUK:
+	case CH_SHIPPING_POSTAGE_AEUROPE:
+	case CH_SHIPPING_POSTAGE_AWORLD:
+		return 0;
 		break;
 	default:
 		g_assert_not_reached ();
@@ -172,6 +346,12 @@ ch_shipping_postage_to_string (ChShippingPostage postage)
 		return "XEUR-S";
 	if (postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED)
 		return "XWOR-S";
+	if (postage == CH_SHIPPING_POSTAGE_AUK)
+		return "AUK";
+	if (postage == CH_SHIPPING_POSTAGE_AEUROPE)
+		return "AEUR";
+	if (postage == CH_SHIPPING_POSTAGE_AWORLD)
+		return "AWOR";
 	return NULL;
 }
 

@@ -40,6 +40,9 @@ typedef enum {
 	CH_SHIPPING_POSTAGE_XUK_SIGNED,
 	CH_SHIPPING_POSTAGE_XEUROPE_SIGNED,
 	CH_SHIPPING_POSTAGE_XWORLD_SIGNED,
+	CH_SHIPPING_POSTAGE_AUK,
+	CH_SHIPPING_POSTAGE_AEUROPE,
+	CH_SHIPPING_POSTAGE_AWORLD,
 	CH_SHIPPING_POSTAGE_LAST
 } ChShippingPostage;
 
@@ -61,13 +64,25 @@ typedef enum {
 
 const gchar	*ch_shipping_postage_to_string	(ChShippingPostage postage);
 const gchar	*ch_shipping_postage_to_service	(ChShippingPostage postage);
-guint		 ch_shipping_postage_to_price	(ChShippingPostage postage);
+gdouble		 ch_shipping_postage_to_price	(ChShippingPostage postage);
 guint		 ch_shipping_device_to_price	(ChShippingPostage postage);
 gboolean	 ch_shipping_send_email		(const gchar	*sender,
 						 const gchar	*recipient,
 						 const gchar	*subject,
 						 const gchar	*body,
 						 GError		**error);
+GString		*ch_shipping_string_load	(const gchar	*filename,
+						 GError		**error);
+guint		 ch_shipping_string_replace	(GString	*string,
+						 const gchar	*search,
+						 const gchar	*replace);
+gboolean	 ch_shipping_print_latex_doc	(const gchar	*str,
+						 const gchar	*printer,
+						 GError		**error);
+gboolean	 ch_shipping_print_svg_doc	(const gchar	*str,
+						 const gchar	*printer,
+						 GError		**error);
+
 G_END_DECLS
 
 #endif /* CH_SHIPPING_COMMON_H */

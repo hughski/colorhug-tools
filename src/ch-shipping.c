@@ -37,6 +37,8 @@
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
+#define	CH_SHIPPING_RESOURCES_DIR	"/home/hughsie/Code/ColorHug/tools/data/resources"
+
 typedef struct {
 	GSettings	*settings;
 	GtkApplication	*application;
@@ -385,94 +387,6 @@ out:
 }
 
 /**
- * ch_shipping_print_latex_doc:
- **/
-static gboolean
-ch_shipping_print_latex_doc (const gchar *str, const gchar *printer, GError **error)
-{
-	const gchar *argv_latex[] = { "pdflatex", "/tmp/temp.tex", NULL };
-	gboolean ret;
-	gint exit_status = 0;
-	GPtrArray *argv_lpr = NULL;
-
-	/* save */
-	ret = g_file_set_contents ("/tmp/temp.tex", str, -1, error);
-	if (!ret)
-		goto out;
-
-	/* convert to pdf */
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
-	if (!ret)
-		goto out;
-	if (exit_status != 0) {
-		ret = FALSE;
-		g_set_error_literal (error, 1, 0, "Failed to prepare latex document");
-		goto out;
-	}
-
-	/* send to the printer */
-	argv_lpr = g_ptr_array_new_with_free_func (g_free);
-	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
-	if (printer != NULL)
-		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
-	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp.pdf"));
-	g_ptr_array_add (argv_lpr, NULL);
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
-	if (!ret)
-		goto out;
-out:
-	if (argv_lpr != NULL)
-		g_ptr_array_unref (argv_lpr);
-	return ret;
-}
-
-/**
- * ch_shipping_print_svg_doc:
- **/
-static gboolean
-ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **error)
-{
-	const gchar *argv_latex[] = { "rsvg-convert",
-				      "--zoom=0.8",
-				      "--format=pdf",
-				      "--output=/tmp/temp-svg.pdf",
-				      "/tmp/temp.svg", NULL };
-	gboolean ret;
-	gint exit_status = 0;
-	GPtrArray *argv_lpr = NULL;
-
-	/* save */
-	ret = g_file_set_contents ("/tmp/temp.svg", str, -1, error);
-	if (!ret)
-		goto out;
-
-	/* convert to pdf */
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
-	if (!ret)
-		goto out;
-	if (exit_status != 0) {
-		ret = FALSE;
-		g_set_error_literal (error, 1, 0, "Failed to prepare latex document");
-		goto out;
-	}
-
-	/* send to the printer */
-	argv_lpr = g_ptr_array_new_with_free_func (g_free);
-	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
-	if (printer != NULL)
-		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
-	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp-svg.pdf"));
-	g_ptr_array_add (argv_lpr, NULL);
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
-	if (!ret)
-		goto out;
-out:
-	if (argv_lpr != NULL)
-		g_ptr_array_unref (argv_lpr);
-	return ret;
-}
-
-/**
  * ch_shipping_print_cn22:
  **/
 static void
@@ -481,13 +395,10 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 	ChShippingPostage postage;
 	gboolean ret;
 	gchar *address = NULL;
-	gchar *name = NULL;
 	GError *error = NULL;
 	GString *str = NULL;
-	guint32 order_id;
 
 	gtk_tree_model_get (model, iter,
-			    COLUMN_ORDER_ID, &order_id,
 			    COLUMN_POSTAGE, &postage,
 			    COLUMN_ADDRESS, &address,
 			    -1);
@@ -496,27 +407,21 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 	    postage != CH_SHIPPING_POSTAGE_WORLD_SIGNED &&
 	    postage != CH_SHIPPING_POSTAGE_XWORLD &&
 	    postage != CH_SHIPPING_POSTAGE_XWORLD_SIGNED &&
+	    postage != CH_SHIPPING_POSTAGE_AWORLD &&
 	    g_strstr_len (address, -1, "Russia") == NULL &&
 	    g_strstr_len (address, -1, "RUSSIA") == NULL) {
 		goto out;
 	}
 
-	str = g_string_new ("");
-	g_string_append (str, "\\documentclass[11pt]{letter}\n");
-	g_string_append (str, "\\usepackage{geometry}\n");
-	g_string_append (str, "\\usepackage{graphicx}\n");
-	g_string_append (str, "\\usepackage{ucs}\n");
-	g_string_append (str, "\\usepackage[utf8x]{inputenc}\n");
-	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
-	g_string_append (str, "\\usepackage{fontenc}\n");
-	g_string_append (str, "\\geometry{papersize={50.8mm,50.8mm},total={50mm,48mm}}\n");
-	g_string_append (str, "\\begin{document}\n");
-	g_string_append (str, "\\pagestyle{empty}\n");
-	g_string_append (str, "\\centering");
-	if (ch_shipping_device_to_price (postage) == 60) {
-		g_string_append (str, "\\includegraphics[width=48mm]{/home/hughsie/Code/ColorHug/Documents/shipping60.png}");
+	str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/cn22.tex", NULL);
+	if (postage == CH_SHIPPING_POSTAGE_AWORLD) {
+		ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/cn22-strap.png");
 	} else {
-		g_string_append (str, "\\includegraphics[width=48mm]{/home/hughsie/Code/ColorHug/Documents/shipping48.png}");
+		if (ch_shipping_device_to_price (postage) == 60) {
+			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping60.png");
+		} else {
+			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping48.png");
+		}
 	}
 	g_string_append (str, "\\end{document}");
 
@@ -528,7 +433,6 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 		goto out;
 	}
 out:
-	g_free (name);
 	g_free (address);
 	if (str != NULL)
 		g_string_free (str, TRUE);
@@ -549,8 +453,7 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	GError *error = NULL;
 	GString *str;
 	guint32 order_id;
-	guint i;
-	guint postage_price;
+	gdouble postage_price;
 	guint device_price;
 
 	gtk_tree_model_get (model, iter,
@@ -574,93 +477,25 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	postage_price = ch_shipping_postage_to_price (postage);
 	device_price = ch_shipping_device_to_price (postage);
 
-	str = g_string_new ("");
-	g_string_append (str, "\\documentclass[a4paper,10pt,oneside]{letter}\n");
-	g_string_append (str, "\\usepackage{ucs}\n");
-	g_string_append (str, "\\usepackage[utf8x]{inputenc}\n");
-	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
-	g_string_append (str, "\\usepackage{fontenc}\n");
-	g_string_append (str, "\\usepackage{graphicx}\n");
-	g_string_append (str, "\\usepackage[margin=0.8in]{geometry}\n");
-	g_string_append (str, "\\usepackage{hyperref}\n");
-	g_string_append (str, "\\author{Richard Hughes}\n");
-	g_string_append (str, "\\title{ColorHug Invoice}\n");
-	g_string_append (str, "\\date{28/08/2012}\n");
-	g_string_append (str, "\\thispagestyle{empty}\n");
-	g_string_append (str, "\\pagestyle{empty}\n");
-	g_string_append (str, "\\renewcommand{\\familydefault}{\\sfdefault}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\begin{document}\n");
-	g_string_append (str, "\\large\n");
-	g_string_append (str, "\\renewcommand{\\arraystretch}{1.5}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\begin{minipage}[t]{4in}\n");
-	g_string_append (str, "\\textit{Customer Address:}\\\\\n");
-	g_string_append_printf (str, "%s\\\\\n", name);
-	for (i = 0; address_split[i] != NULL; i++)
-		g_string_append_printf (str, "%s\\\\\n", address_split[i]);
-	g_string_append (str, "\\end{minipage}\n");
-	g_string_append (str, "\\begin{minipage}[t]{2in}\n");
-	g_string_append (str, "\\textit{Supplier Address:}\\\\\n");
-	g_string_append (str, "Hughski Limited\\\\\n");
-	g_string_append (str, "9 Sidmouth Avenue\\\\\n");
-	g_string_append (str, "Isleworth\\\\\n");
-	g_string_append (str, "Middlesex\\\\\n");
-	g_string_append (str, "TW7 4DW\n");
-	g_string_append (str, "\\end{minipage}\n");
-	g_string_append (str, "\n");
-	g_string_append_printf (str, "Invoice number: \\texttt{%04i-1}\\\\\n", order_id);
-	g_string_append_printf (str, "Device numbers: \\texttt{%s}\n", device_ids);
-	g_string_append (str, "\n");
-	g_string_append (str, "\\begin{flushright}\n");
-	g_string_append (str, " \\today\n");
-	g_string_append (str, "\\end{flushright}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\textbf{You bought a ColorHug!}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "I really appreciate you giving open hardware a try. ");
-	g_string_append (str, "Please join the colorhug-users Google group and tell us what you think. ");
-	g_string_append (str, "All announcements about new firmware updates and new client code will also be done on the mailing list.\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "Things you might want to do now:\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\begin{itemize}\n");
-	g_string_append (str, "\\item Check everything is working correctly\n");
-	g_string_append (str, "\\item Create a display CCMX matrix if you have a photospectrometer\n");
-	g_string_append (str, "\\item Check versions of all the software if you don't want to use the LiveCD\n");
-	g_string_append (str, "\\item Check any frequently asked questions\n");
-	g_string_append (str, "\\end{itemize}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "You can do all these things by following the instructions on \\\\\\url{http://www.hughski.com/owner.html}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "If you have any problems with the hardware, please just email \\url{info@hughski.com} with as much information about the problem as possible. ");
-	g_string_append (str, "If you are using your own distribution, then please check with the LiveCD before assuming the hardware has failed.\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "{%\n");
-	g_string_append (str, "\\newcommand{\\mc}[3]{\\multicolumn{#1}{#2}{#3}}\n");
-	g_string_append (str, "\\begin{center}\n");
-	g_string_append (str, "\\begin{tabular}{|l|l|c|c|}\\hline\n");
-	g_string_append (str, "\\mc{1}{|c|}{\\textbf{Quantity}} & \\mc{1}{c|}{\\textbf{Product}} & \\textbf{Cost} & \\textbf{Total}\\\\\\hline\n");
-	g_string_append_printf (str, "\\mc{1}{|c|}{1} & ColorHug (inc. elastic strap, USB and LiveCD) & \\pounds%i.00 & \\pounds%i.00\\\\\\hline\n",
-				device_price, device_price);
-	g_string_append_printf (str, " & Delivery & \\pounds%i.00 & \\pounds%i.00\\\\\\hline\n", postage_price, postage_price);
-	g_string_append_printf (str, " &  &  & \\textbf{\\pounds%i.00}\\\\\\hline\n", device_price + postage_price);
-	g_string_append (str, "\\end{tabular}\n");
-	g_string_append (str, "\\end{center}\n");
-	g_string_append (str, "}%\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\vspace{10px}\n");
-	g_string_append (str, "\\hspace{50px}Many thanks,\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\hspace{75px}\\includegraphics{/home/hughsie/Documents/Secure/signature.png}\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\hspace{100px}Richard Hughes\n");
-	g_string_append (str, "\n");
-	g_string_append (str, "\\vspace{20px}\n");
-	g_string_append (str, "\n");
-	g_string_append_printf (str, "\\let\\thefootnote\\relax\\footnote{\\texttt{%s}}\n", ch_shipping_postage_to_string (postage));
-	g_string_append (str, "\n");
-	g_string_append (str, "\\end{document}\n");
+	if (postage == CH_SHIPPING_POSTAGE_AUK ||
+	    postage == CH_SHIPPING_POSTAGE_AEUROPE ||
+	    postage == CH_SHIPPING_POSTAGE_AWORLD) {
+		str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/invoice-straps.tex", NULL);
+	} else {
+		str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/invoice.tex", NULL);
+	}
+	ch_shipping_string_replace (str, "$NAME$", name);
+	ch_shipping_string_replace (str, "$ADDRESS1$", address_split[0]);
+	ch_shipping_string_replace (str, "$ADDRESS2$", address_split[1]);
+	ch_shipping_string_replace (str, "$ADDRESS3$", address_split[2]);
+	ch_shipping_string_replace (str, "$ADDRESS4$", address_split[3]);
+	ch_shipping_string_replace (str, "$ADDRESS5$", address_split[4]);
+	ch_shipping_string_replace (str, "$ORDER$", g_strdup_printf ("%04i-1", order_id));
+	ch_shipping_string_replace (str, "$DEVICES$", device_ids);
+	ch_shipping_string_replace (str, "$DEVICE_PRICE$", g_strdup_printf ("%i.00", device_price));
+	ch_shipping_string_replace (str, "$POSTAGE_PRICE$", g_strdup_printf ("%.2f", postage_price));
+	ch_shipping_string_replace (str, "$TOTAL_PRICE$", g_strdup_printf ("%.2f", device_price + postage_price));
+	ch_shipping_string_replace (str, "$POSTAGE_TYPE$", ch_shipping_postage_to_string (postage));
 
 	/* print */
 	ret = ch_shipping_print_latex_doc (str->str, NULL, &error);
@@ -770,43 +605,6 @@ ch_shipping_mark_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	ch_shipping_refresh_orders (priv);
 }
 
-static guint
-_g_string_replace (GString *string, const gchar *search, const gchar *replace)
-{
-	gchar *tmp;
-	guint cnt = 0;
-	guint replace_len;
-	guint search_len;
-
-	search_len = strlen (search);
-	replace_len = strlen (replace);
-
-	do {
-		tmp = g_strstr_len (string->str, -1, search);
-		if (tmp == NULL)
-			goto out;
-
-		/* reallocate the string if required */
-		if (search_len > replace_len) {
-			g_string_erase (string,
-					tmp - string->str,
-					search_len - replace_len);
-		}
-		if (search_len < replace_len) {
-			g_string_insert_len (string,
-					     tmp - string->str,
-					     search,
-					     replace_len - search_len);
-		}
-
-		/* just memcmp in the new string */
-		memcpy (tmp, replace, replace_len);
-		cnt++;
-	} while (TRUE);
-out:
-	return cnt;
-}
-
 /**
  * ch_shipping_print_manifest:
  **/
@@ -848,19 +646,19 @@ ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *
 		i--;
 
 	tmp = g_strdup_printf ("$SERVICE%02i$", cnt);
-	_g_string_replace (str, tmp, ch_shipping_postage_to_service (postage));
+	ch_shipping_string_replace (str, tmp, ch_shipping_postage_to_service (postage));
 	g_free (tmp);
 	tmp = g_strdup_printf ("$POSTCODE%02i$", cnt);
-	_g_string_replace (str, tmp, g_strdup_printf ("%s, %s", address_split[i-2], address_split[i-1]));
+	ch_shipping_string_replace (str, tmp, g_strdup_printf ("%s, %s", address_split[i-2], address_split[i-1]));
 	g_free (tmp);
 	tmp = g_strdup_printf ("$BUILDINGNAME%02i$", cnt);
-	_g_string_replace (str, tmp, address_split[0]);
+	ch_shipping_string_replace (str, tmp, address_split[0]);
 	g_free (tmp);
 	tmp = g_strdup_printf ("$VALUE%02i$", cnt);
-	_g_string_replace (str, tmp, g_strdup_printf ("£%i", device_price));
+	ch_shipping_string_replace (str, tmp, g_strdup_printf ("£%i", device_price));
 	g_free (tmp);
 	tmp = g_strdup_printf ("$BARCODE%02i$", cnt);
-	_g_string_replace (str, tmp, tracking[0] != '\0' ? tracking : "n/a");
+	ch_shipping_string_replace (str, tmp, tracking[0] != '\0' ? tracking : "n/a");
 	g_free (tmp);
 
 	g_free (name);
@@ -890,12 +688,8 @@ ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gchar *tmp;
 
 	/* load svg data */
-	str = g_slice_new (GString);
-	ret = g_file_get_contents ("/home/hughsie/Code/ColorHug/DropAndGo/template.svg",
-				   &str->str,
-				   &str->len,
-				   &error);
-	if (!ret) {
+	str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/template.svg", &error);
+	if (str == NULL) {
 		ch_shipping_error_dialog (priv, "failed to open file: %s", error->message);
 		g_error_free (error);
 		goto out;
@@ -908,7 +702,7 @@ ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 				g_date_time_get_day_of_month (date),
 				g_date_time_get_month (date),
 				g_date_time_get_year (date));
-	_g_string_replace (str, "$DATE$", tmp);
+	ch_shipping_string_replace (str, "$DATE$", tmp);
 	g_free (tmp);
 
 	treeview = GTK_TREE_VIEW (gtk_builder_get_object (priv->builder, "treeview_orders"));
@@ -928,19 +722,19 @@ ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* blank out the others */
 	for (i = cnt + 1; i < 16; i++) {
 		tmp = g_strdup_printf ("$SERVICE%02i$", i);
-		_g_string_replace (str, tmp, "");
+		ch_shipping_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$POSTCODE%02i$", i);
-		_g_string_replace (str, tmp, "");
+		ch_shipping_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$BUILDINGNAME%02i$", i);
-		_g_string_replace (str, tmp, "");
+		ch_shipping_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$VALUE%02i$", i);
-		_g_string_replace (str, tmp, "");
+		ch_shipping_string_replace (str, tmp, "");
 		g_free (tmp);
 		tmp = g_strdup_printf ("$BARCODE%02i$", i);
-		_g_string_replace (str, tmp, "");
+		ch_shipping_string_replace (str, tmp, "");
 		g_free (tmp);
 	}
 
@@ -963,9 +757,7 @@ out:
 static void
 ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
-
 	ChShippingPostage postage;
-//	const gchar *postage_type;
 	gboolean ret;
 	gchar *address = NULL;
 	gchar *comment = NULL;
@@ -975,7 +767,6 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 	gchar *name = NULL;
 	GError *error = NULL;
 	guint32 order_id;
-	guint i;
 	GString *str = NULL;
 
 	/* get selected item */
@@ -1011,41 +802,34 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 		goto out;
 	}
 
-	str = g_string_new ("");
-	g_string_append (str, "\\documentclass[12pt]{letter}\n");
-	g_string_append (str, "\\usepackage{geometry}\n");
-	g_string_append (str, "\\usepackage{tabularx}\n");
-	g_string_append (str, "\\usepackage{ucs}\n");
-	g_string_append (str, "\\usepackage[utf8x]{inputenc}\n");
-	g_string_append (str, "\\usepackage[british,UKenglish]{babel}\n");
-	g_string_append (str, "\\usepackage{fontenc}\n");
-	g_string_append (str, "\\usepackage[hang,flushmargin]{footmisc} \n");
-	g_string_append (str, "\\geometry{papersize={50.8mm,50.8mm},total={49mm,48mm}}\n");
-	g_string_append (str, "\\renewcommand{\\familydefault}{\\sfdefault}\n");
-	g_string_append (str, "\\begin{document}\n");
-	g_string_append (str, "\\pagestyle{empty}\n");
-	if (postage == CH_SHIPPING_POSTAGE_UK ||
+	str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/shipping-label.tex", &error);
+	if (str == NULL) {
+		ch_shipping_error_dialog (priv, "Failed to lad shipping label",
+					  error->message);
+		g_error_free (error);
+		goto out;
+	}
+
+	if (postage == CH_SHIPPING_POSTAGE_AUK ||
+	    postage == CH_SHIPPING_POSTAGE_UK ||
 	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
 	    postage == CH_SHIPPING_POSTAGE_XUK ||
 	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
-		g_string_append (str, "\\noindent\\textbf{LARGE LETTER}\n");
+		ch_shipping_string_replace (str, "$LETTER_CLASS$", "LARGE LETTER");
 	} else {
-		g_string_append (str, "\\noindent\\textbf{SMALL PACKAGE}\n");
+		ch_shipping_string_replace (str, "$LETTER_CLASS$", "SMALL PACKAGE");
 	}
-	g_string_append (str, "\n");
-	g_string_append (str, "\\noindent\n");
-	g_string_append_printf (str, "%s\\\\\n", name);
 
-	for (i = 0; address_split[i] != NULL; i++) {
-		g_string_append_printf (str,
-					"%s\\\\\n",
-					address_split[i]);
-	}
-	g_string_append (str, "\\\\\\\n");
-	g_string_append_printf (str, "\\small{\\begin{tabularx}{130px}{Xl}\\texttt{%s} & \\texttt{%s}\\end{tabularx}}\n",
-				device_ids,
-				ch_shipping_postage_to_string (postage));
-	g_string_append (str, "\\end{document}\n");
+	ch_shipping_string_replace (str, "$NAME$", name);
+	ch_shipping_string_replace (str, "$ADDRESS1$", address_split[0]);
+	ch_shipping_string_replace (str, "$ADDRESS2$", address_split[1]);
+	ch_shipping_string_replace (str, "$ADDRESS3$", address_split[2]);
+	ch_shipping_string_replace (str, "$ADDRESS4$", address_split[3]);
+	ch_shipping_string_replace (str, "$ADDRESS5$", address_split[4]);
+	ch_shipping_string_replace (str, "$ORDER$", g_strdup_printf ("%04i", order_id));
+	ch_shipping_string_replace (str, "$DEVICES$", device_ids);
+	ch_shipping_string_replace (str, "$SHIPPING$", ch_shipping_postage_to_string (postage));
+
 	ret = ch_shipping_print_latex_doc (str->str, "LP2844", &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "Failed to print label",
@@ -1564,6 +1348,15 @@ ch_shipping_order_get_radio_postage (ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping12"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
 		postage = CH_SHIPPING_POSTAGE_XWORLD_SIGNED;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping13"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_AUK;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping14"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_AEUROPE;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping15"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_AWORLD;
 	return postage;
 }
 
@@ -1587,11 +1380,7 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	guint32 device_id;
 	guint32 order_id;
 	guint i;
-	guint number_of_devices;
-
-	/* get number of devices */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_order_devices"));
-	number_of_devices = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
+	guint number_of_devices = 0;
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_paypal"));
 	name = gtk_entry_get_text (GTK_ENTRY (widget));
@@ -1622,6 +1411,14 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* get postage */
 	postage = ch_shipping_order_get_radio_postage (priv);
+
+	/* get number of devices */
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_order_devices"));
+	if (postage != CH_SHIPPING_POSTAGE_AUK &&
+	    postage != CH_SHIPPING_POSTAGE_AEUROPE &&
+	    postage != CH_SHIPPING_POSTAGE_AWORLD) {
+		number_of_devices = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
+	}
 skip:
 	/* add to database */
 	order_id = ch_database_add_order (priv->database, name, addr->str, email, postage, &error);
@@ -1633,7 +1430,9 @@ skip:
 
 	/* write message body */
 	str = g_string_new ("");
-	if (number_of_devices == 1) {
+	if (number_of_devices == 0) {
+		g_string_append_printf (str, "ColorHug order %04i has been created ", order_id);
+	} else if (number_of_devices == 1) {
 		g_string_append_printf (str, "ColorHug order %04i has been created and allocated device number ",
 					order_id);
 	} else {
@@ -1725,14 +1524,16 @@ skip:
 			g_string_append (str, "Once the devices have been posted we will email again with the tracking number.\n");
 		}
 	} else {
-		if (number_of_devices == 1) {
+		if (number_of_devices == 0) {
+			g_string_append (str, "Once the strap has been posted a confirmation email will be sent.\n");
+		} else if (number_of_devices == 1) {
 			g_string_append (str, "Once the device has been posted a confirmation email will be sent.\n");
 		} else {
 			g_string_append (str, "Once the devices have been posted a confirmation email will be sent.\n");
 		}
 	}
 	g_string_append (str, "\n");
-	g_string_append (str, "Thanks again for your support for this new and exciting project.\n");
+	g_string_append (str, "Thanks again for your support for this exciting project.\n");
 	g_string_append (str, "\n");
 	g_string_append (str, "Ania Hughes\n");
 
@@ -1808,7 +1609,9 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 	/* write email */
 	str = g_string_new ("");
 	from = g_settings_get_string (priv->settings, "invoice-sender");
-	if (tracking_number[0] == '\0' || g_strcmp0 (tracking_number, "n/a") == 0) {
+	if (device_ids == NULL) {
+		g_string_append (str, "I'm pleased to tell your accessory has been dispatched.\n");
+	} else if (tracking_number[0] == '\0' || g_strcmp0 (tracking_number, "n/a") == 0) {
 		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched.\n", device_ids);
 	} else {
 		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched with tracking ID: %s\n", device_ids, tracking_number);
@@ -1817,22 +1620,25 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 	g_string_append (str, "\n");
 	if (postage == CH_SHIPPING_POSTAGE_UK ||
 	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
+	    postage == CH_SHIPPING_POSTAGE_AUK ||
 	    postage == CH_SHIPPING_POSTAGE_XUK ||
 	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 4 days.\n");
 	} else if (postage == CH_SHIPPING_POSTAGE_EUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
+		   postage == CH_SHIPPING_POSTAGE_AEUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_XEUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 8 days.\n");
 	} else if (postage == CH_SHIPPING_POSTAGE_WORLD ||
 		   postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED ||
+		   postage == CH_SHIPPING_POSTAGE_AWORLD ||
 		   postage == CH_SHIPPING_POSTAGE_XWORLD ||
 		   postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED) {
 		g_string_append (str, "Please allow up to three weeks for delivery, although most items are delivered within 10 days.\n");
 	}
 	g_string_append (str, "\n");
-	g_string_append (str, "Thanks again for your support for this new and exciting project.\n");
+	g_string_append (str, "Thanks again for your support for this exciting project.\n");
 	g_string_append (str, "\n");
 	g_string_append (str, "Ania Hughes\n");
 
@@ -2365,7 +2171,7 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	/* sorted */
 	sortable = GTK_TREE_SORTABLE (gtk_builder_get_object (priv->builder, "liststore_orders"));
 	gtk_tree_sortable_set_sort_column_id (sortable,
-					      COLUMN_DEVICE_IDS, GTK_SORT_DESCENDING);
+					      COLUMN_ORDER_ID, GTK_SORT_DESCENDING);
 
 	/* buttons */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_close"));
@@ -2468,6 +2274,15 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	g_signal_connect (widget, "toggled",
 			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping12"));
+	g_signal_connect (widget, "toggled",
+			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping13"));
+	g_signal_connect (widget, "toggled",
+			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping14"));
+	g_signal_connect (widget, "toggled",
+			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping15"));
 	g_signal_connect (widget, "toggled",
 			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
 

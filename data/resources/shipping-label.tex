@@ -1,0 +1,24 @@
+\documentclass[12pt]{letter}
+\usepackage{geometry}
+\usepackage{tabularx}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage[british,UKenglish]{babel}
+\usepackage{fontenc}
+\usepackage[hang,flushmargin]{footmisc} 
+\geometry{papersize={50.8mm,50.8mm},total={49mm,48mm}}
+\renewcommand{\familydefault}{\sfdefault}
+\begin{document}
+\pagestyle{empty}
+\noindent\textbf{$LETTER_CLASS$}
+
+\noindent
+$NAME$\\
+$ADDRESS1$\\
+$ADDRESS2$\\
+$ADDRESS3$\\
+$ADDRESS4$\\
+$ADDRESS5$\\
+\\\
+\small{\begin{tabularx}{130px}{Xl}\texttt{$DEVICES$} & \texttt{$SHIPPING$}\end{tabularx}}
+\end{document}
