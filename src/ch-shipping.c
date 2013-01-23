@@ -37,8 +37,6 @@
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
-#define	CH_SHIPPING_RESOURCES_DIR	"/home/hughsie/Code/ColorHug/tools/data/resources"
-
 typedef struct {
 	GSettings	*settings;
 	GtkApplication	*application;
@@ -413,7 +411,7 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 		goto out;
 	}
 
-	str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/cn22.tex", NULL);
+	str = ch_shipping_string_load (CH_DATA "/cn22.tex", NULL);
 	if (postage == CH_SHIPPING_POSTAGE_AWORLD) {
 		ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/cn22-strap.png");
 	} else {
@@ -480,9 +478,9 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	if (postage == CH_SHIPPING_POSTAGE_AUK ||
 	    postage == CH_SHIPPING_POSTAGE_AEUROPE ||
 	    postage == CH_SHIPPING_POSTAGE_AWORLD) {
-		str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/invoice-straps.tex", NULL);
+		str = ch_shipping_string_load (CH_DATA "/invoice-straps.tex", NULL);
 	} else {
-		str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/invoice.tex", NULL);
+		str = ch_shipping_string_load (CH_DATA "/invoice.tex", NULL);
 	}
 	ch_shipping_string_replace (str, "$NAME$", name);
 	ch_shipping_string_replace (str, "$ADDRESS1$", address_split[0]);
@@ -688,7 +686,7 @@ ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gchar *tmp;
 
 	/* load svg data */
-	str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/template.svg", &error);
+	str = ch_shipping_string_load (CH_DATA "/template.svg", &error);
 	if (str == NULL) {
 		ch_shipping_error_dialog (priv, "failed to open file: %s", error->message);
 		g_error_free (error);
@@ -802,7 +800,7 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 		goto out;
 	}
 
-	str = ch_shipping_string_load (CH_SHIPPING_RESOURCES_DIR "/shipping-label.tex", &error);
+	str = ch_shipping_string_load (CH_DATA "/shipping-label.tex", &error);
 	if (str == NULL) {
 		ch_shipping_error_dialog (priv, "Failed to lad shipping label",
 					  error->message);
@@ -1609,8 +1607,8 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 	/* write email */
 	str = g_string_new ("");
 	from = g_settings_get_string (priv->settings, "invoice-sender");
-	if (device_ids == NULL) {
-		g_string_append (str, "I'm pleased to tell your accessory has been dispatched.\n");
+	if (device_ids[0] == '-') {
+		g_string_append (str, "I'm pleased to tell your HugStrap has been dispatched.\n");
 	} else if (tracking_number[0] == '\0' || g_strcmp0 (tracking_number, "n/a") == 0) {
 		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched.\n", device_ids);
 	} else {
@@ -1638,14 +1636,14 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 		g_string_append (str, "Please allow up to three weeks for delivery, although most items are delivered within 10 days.\n");
 	}
 	g_string_append (str, "\n");
-	g_string_append (str, "Thanks again for your support for this exciting project.\n");
+	g_string_append (str, "Thanks again for your support for this project.\n");
 	g_string_append (str, "\n");
 	g_string_append (str, "Ania Hughes\n");
 
 	/* actually send the email */
 	ret = ch_shipping_send_email (from,
 				      email,
-				      "Your ColorHug has been dispatched!",
+				      "Your order has been dispatched!",
 				      str->str,
 				      &error);
 	if (!ret) {

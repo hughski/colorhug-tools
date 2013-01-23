@@ -107,6 +107,7 @@ dnl ---------------------------------------------------------------------------
 AC_CONFIG_FILES([
 Makefile
 data/Makefile
+data/resources/Makefile
 src/Makefile
 po/Makefile.in
 ])

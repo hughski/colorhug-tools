@@ -23,6 +23,7 @@
 
 #include <glib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "ch-shipping-common.h"
 
@@ -98,18 +99,31 @@ out:
 gboolean
 ch_shipping_print_latex_doc (const gchar *str, const gchar *printer, GError **error)
 {
-	const gchar *argv_latex[] = { "pdflatex", "/tmp/temp.tex", NULL };
 	gboolean ret;
+	gchar *filename = NULL;
 	gint exit_status = 0;
+	gint fd = -1;
 	GPtrArray *argv_lpr = NULL;
+	GPtrArray *argv = NULL;
+	guint len;
 
 	/* save */
-	ret = g_file_set_contents ("/tmp/temp.tex", str, -1, error);
+	filename = g_build_filename (g_get_tmp_dir (), "ch-shipping-XXXXXX.tex", NULL);
+	fd = g_mkstemp (filename);
+	ret = g_file_set_contents (filename, str, -1, error);
 	if (!ret)
 		goto out;
 
 	/* convert to pdf */
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
+	argv = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv, g_strdup ("pdflatex"));
+	g_ptr_array_add (argv, g_strdup (filename));
+	g_ptr_array_add (argv, NULL);
+	ret = g_spawn_sync (g_get_tmp_dir (),
+			    (gchar **) argv->pdata,
+			    NULL, G_SPAWN_SEARCH_PATH,
+			    NULL, NULL, NULL, NULL,
+			    &exit_status, error);
 	if (!ret)
 		goto out;
 	if (exit_status != 0) {
@@ -118,17 +132,30 @@ ch_shipping_print_latex_doc (const gchar *str, const gchar *printer, GError **er
 		goto out;
 	}
 
+	/* change the extension */
+	len = strlen (filename);
+	filename[len - 3] = 'p';
+	filename[len - 2] = 'd';
+	filename[len - 1] = 'f';
+
 	/* send to the printer */
 	argv_lpr = g_ptr_array_new_with_free_func (g_free);
 	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
 	if (printer != NULL)
 		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
-	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp.pdf"));
+	g_ptr_array_add (argv_lpr, g_strdup (filename));
 	g_ptr_array_add (argv_lpr, NULL);
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
+	ret = g_spawn_sync (g_get_tmp_dir (), (gchar **) argv_lpr->pdata, NULL,
+			    G_SPAWN_SEARCH_PATH, NULL, NULL, NULL,
+			    NULL, NULL, error);
 	if (!ret)
 		goto out;
 out:
+	if (fd > 0)
+		close (fd);
+	g_free (filename);
+	if (argv != NULL)
+		g_ptr_array_unref (argv);
 	if (argv_lpr != NULL)
 		g_ptr_array_unref (argv_lpr);
 	return ret;
@@ -140,22 +167,35 @@ out:
 gboolean
 ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **error)
 {
-	const gchar *argv_latex[] = { "rsvg-convert",
-				      "--zoom=0.8",
-				      "--format=pdf",
-				      "--output=/tmp/temp-svg.pdf",
-				      "/tmp/temp.svg", NULL };
 	gboolean ret;
 	gint exit_status = 0;
+	GPtrArray *argv = NULL;
 	GPtrArray *argv_lpr = NULL;
+	gchar *filename = NULL;
+	gchar *filename_out = NULL;
+	gint fd = -1;
+	gint fd_out = -1;
 
 	/* save */
-	ret = g_file_set_contents ("/tmp/temp.svg", str, -1, error);
+	filename = g_build_filename (g_get_tmp_dir (), "ch-shipping-XXXXXX.svg", NULL);
+	fd = g_mkstemp (filename);
+	filename_out = g_build_filename (g_get_tmp_dir (), "ch-shipping-XXXXXX.pdf", NULL);
+	fd_out = g_mkstemp (filename_out);
+	ret = g_file_set_contents (filename, str, -1, error);
 	if (!ret)
 		goto out;
 
 	/* convert to pdf */
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_latex, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &exit_status, error);
+	argv = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv, g_strdup ("rsvg-convert"));
+	g_ptr_array_add (argv, g_strdup ("--zoom=0.8"));
+	g_ptr_array_add (argv, g_strdup ("--format=pdf"));
+	g_ptr_array_add (argv, g_strdup_printf ("--output=%s", filename_out));
+	g_ptr_array_add (argv, g_strdup (filename));
+	g_ptr_array_add (argv, NULL);
+	ret = g_spawn_sync (g_get_tmp_dir (), (gchar **) argv->pdata, NULL,
+			    G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL,
+			    &exit_status, error);
 	if (!ret)
 		goto out;
 	if (exit_status != 0) {
@@ -169,12 +209,23 @@ ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **erro
 	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
 	if (printer != NULL)
 		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
-	g_ptr_array_add (argv_lpr, g_strdup ("/tmp/temp-svg.pdf"));
+	g_ptr_array_add (argv_lpr, g_strdup_printf ("-# %i", 2));
+	g_ptr_array_add (argv_lpr, g_strdup (filename_out));
 	g_ptr_array_add (argv_lpr, NULL);
-	ret = g_spawn_sync ("/tmp", (gchar **) argv_lpr->pdata, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, NULL, error);
+	ret = g_spawn_sync (g_get_tmp_dir (), (gchar **) argv_lpr->pdata,
+			    NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL,
+			    NULL, error);
 	if (!ret)
 		goto out;
 out:
+	if (fd > 0)
+		close (fd);
+	if (fd_out > 0)
+		close (fd_out);
+	g_free (filename);
+	g_free (filename_out);
+	if (argv != NULL)
+		g_ptr_array_unref (argv);
 	if (argv_lpr != NULL)
 		g_ptr_array_unref (argv_lpr);
 	return ret;
@@ -367,9 +418,11 @@ ch_shipping_send_email (const gchar *sender,
 {
 	gboolean ret;
 	gchar *cmd = NULL;
-	GString *str = NULL;
-	gint retval = 0;
+	gchar *filename = NULL;
 	gchar *spawn_stderr = NULL;
+	gint fd = -1;
+	gint retval = 0;
+	GString *str = NULL;
 
 	/* write email */
 	str = g_string_new ("");
@@ -379,7 +432,9 @@ ch_shipping_send_email (const gchar *sender,
 	g_string_append_printf (str, "\n%s\n", body);
 
 	/* dump the email to file */
-	ret = g_file_set_contents ("/tmp/email.txt", str->str, -1, error);
+	filename = g_build_filename (g_get_tmp_dir (), "ch-shipping-XXXXXX.txt", NULL);
+	fd = g_mkstemp (filename);
+	ret = g_file_set_contents (filename, str->str, -1, error);
 	if (!ret)
 		goto out;
 
@@ -387,7 +442,8 @@ ch_shipping_send_email (const gchar *sender,
 	cmd = g_strdup_printf ("curl -n --ssl-reqd --mail-from \"%s\" "
 			       "--mail-rcpt \"%s\" "
 			       "--url smtps://smtp.gmail.com:465 -T "
-			       "/tmp/email.txt", sender, recipient);
+			       "%s", sender, recipient, filename);
+	g_debug ("Using '%s' to send email", cmd);
 	ret = g_spawn_command_line_sync (cmd, NULL, &spawn_stderr, &retval, error);
 	if (!ret)
 		goto out;
@@ -398,6 +454,9 @@ ch_shipping_send_email (const gchar *sender,
 		goto out;
 	}
 out:
+	if (fd > 0)
+		close (fd);
+	g_free (filename);
 	g_free (spawn_stderr);
 	g_free (cmd);
 	if (str != NULL)
