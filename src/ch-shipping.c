@@ -1126,12 +1126,11 @@ ch_shipping_queue_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* create the email */
 	str = g_string_new ("");
 
-	g_string_append (str, "Just a quick note to say we've acknowledged your preorder request for a ColorHug.\n\n");
-	g_string_append (str, "We're now making about 50 devices a week so it shouldn't be long until I email you "
-			      "to tell you that your device is built, tested and ready to send.\n\n");
+	g_string_append (str, "Just a quick note to say we've acknowledged your interest for a ColorHug.\n");
+	g_string_append (str, "It shouldn't be long until we email again saying that your device is built, tested and ready to send.\n\n");
 	g_string_append (str, "Thanks again for your patience and support.\n\n");
 	g_string_append (str, "Many thanks,\n\n");
-	g_string_append (str, "Ania Hughes");
+	g_string_append (str, "Ania");
 
 	/* get promotion status */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "checkbutton_queue_promote"));
@@ -1166,7 +1165,7 @@ ch_shipping_queue_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		/* send email */
 		ret = ch_shipping_send_email (sender,
 					      recipient,
-					      "Confirming your ColorHug pre-order",
+					      "ColorHug order",
 					      str->str,
 					      &error);
 		if (!ret) {
@@ -1232,14 +1231,10 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* create the email */
 	str = g_string_new ("");
-	g_string_append (str, "I am pleased to announce that the fourth batch of ColorHugs are now built, ");
+	g_string_append (str, "I am pleased to announce that the fifth batch of ColorHugs are now built, ");
 	g_string_append (str, "tested and ready to ship.\n\n");
-	g_string_append (str, "You are now being given an opportunity to purchase one ColorHug. ");
-	g_string_append (str, "Please read the details on the link below *carefully* before you make the purchase.");
-	g_string_append (str, "Please don't share the URL as there are only 130 units in this batch.\n\n");
-	g_string_append (str, "http://www.hughski.com/buy-now.html\n\n");
-	g_string_append (str, "I would ask you either decline the offer or complete the purchase within 14 days, ");
-	g_string_append (str, "otherwise I'll have to allocate your ColorHug to somebody else.\n\n");
+	g_string_append (str, "Please read the details on the link *carefully* before you make the purchase.");
+	g_string_append (str, "http://www.hughski.com/buy.html\n\n");
 	g_string_append (str, "Thanks again for your support for this new and exciting project.\n\n");
 	g_string_append (str, "Many thanks,\n\n");
 	g_string_append (str, "Ania Hughes");

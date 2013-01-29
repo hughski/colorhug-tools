@@ -289,7 +289,7 @@ ch_shipping_postage_to_service (ChShippingPostage postage)
 		break;
 	case CH_SHIPPING_POSTAGE_UK:
 	case CH_SHIPPING_POSTAGE_XUK:
-		return "1c LL";
+		return "P 145g";
 		break;
 	case CH_SHIPPING_POSTAGE_EUROPE:
 	case CH_SHIPPING_POSTAGE_XEUROPE:
