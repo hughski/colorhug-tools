@@ -34,6 +34,7 @@
 
 #include "ch-flash-md.h"
 #include "ch-database.h"
+#include "ch-shipping-common.h"
 
 #define CH_FACTORY_AMBIENT_MIN		0.00001
 
@@ -978,6 +979,35 @@ out:
 }
 
 /**
+ * ch_factory_print_device_label:
+ **/
+static void
+ch_factory_print_device_label (ChFactoryPrivate *priv, guint32 device_serial)
+{
+	gboolean ret;
+	GDateTime *datetime;
+	GError *error = NULL;
+	GString *str;
+
+	datetime = g_date_time_new_now_local ();
+	str = ch_shipping_string_load (CH_DATA "/device-label.tex", NULL);
+	ch_shipping_string_replace (str, "$SERIAL$", g_strdup_printf ("%06i-1", 123));
+	ch_shipping_string_replace (str, "$BATCH$", g_strdup_printf ("%02i-1", 6));
+	ch_shipping_string_replace (str, "$DATE$", g_date_time_format (datetime, "%Y-%m-%d"));
+	g_date_time_unref (datetime);
+
+	/* print */
+	ret = ch_shipping_print_latex_doc (str->str, "LP2844", &error);
+	if (!ret) {
+		ch_factory_error_dialog (priv, "failed to save file: %s", error->message);
+		g_error_free (error);
+		goto out;
+	}
+out:
+	g_string_free (str, TRUE);
+}
+
+/**
  * ch_factory_measure_save_device:
  **/
 static void
@@ -1126,6 +1156,9 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 		g_error_free (error);
 		goto out;
 	}
+
+	/* print device label */
+	ch_factory_print_device_label (priv, serial_number);
 
 	/* success */
 	ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_CALIBRATED);
