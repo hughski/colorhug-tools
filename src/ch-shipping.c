@@ -808,11 +808,7 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 		goto out;
 	}
 
-	if (postage == CH_SHIPPING_POSTAGE_AUK ||
-	    postage == CH_SHIPPING_POSTAGE_UK ||
-	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XUK ||
-	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
+	if (postage == CH_SHIPPING_POSTAGE_AUK) {
 		ch_shipping_string_replace (str, "$LETTER_CLASS$", "LARGE LETTER");
 	} else {
 		ch_shipping_string_replace (str, "$LETTER_CLASS$", "SMALL PACKAGE");
@@ -2047,29 +2043,43 @@ ch_shipping_order_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, C
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
 	if (value[0] == '\0')
 		goto out;
+	if (g_strstr_len (value, -1, "\n") != NULL)
+		goto out;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_email"));
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
 	if (value[0] == '\0')
+		goto out;
+	if (g_strstr_len (value, -1, "\n") != NULL)
 		goto out;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr1"));
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
 	if (value[0] == '\0')
 		goto out;
+	if (g_strstr_len (value, -1, "\n") != NULL)
+		goto out;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr2"));
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
 	if (value[0] == '\0')
+		goto out;
+	if (g_strstr_len (value, -1, "\n") != NULL)
 		goto out;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr3"));
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
 	if (value[0] == '\0')
 		goto out;
+	if (g_strstr_len (value, -1, "\n") != NULL)
+		goto out;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr4"));
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
 	if (value[0] == '\0')
 		goto out;
+	if (g_strstr_len (value, -1, "\n") != NULL)
+		goto out;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr5"));
 	value = gtk_entry_get_text (GTK_ENTRY (widget));
 	if (value[0] == '\0')
+		goto out;
+	if (g_strstr_len (value, -1, "\n") != NULL)
 		goto out;
 
 	/* check we have a tracking number */
