@@ -2,6 +2,7 @@ pkgdata_DATA =						\
 	card.png					\
 	cn22.tex					\
 	date-stamp.png					\
+	device-label.tex				\
 	drop-and-go.png					\
 	invoice-straps.tex				\
 	invoice.tex					\

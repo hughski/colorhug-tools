@@ -64,6 +64,10 @@ ch_shipping_string_replace (GString *string, const gchar *search, const gchar *r
 	guint replace_len;
 	guint search_len;
 
+	g_return_val_if_fail (string != NULL, 0);
+	g_return_val_if_fail (search != NULL, 0);
+	g_return_val_if_fail (replace != NULL, 0);
+
 	search_len = strlen (search);
 	replace_len = strlen (replace);
 

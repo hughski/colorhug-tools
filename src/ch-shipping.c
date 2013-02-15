@@ -1235,7 +1235,7 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_string_append (str, "tested and ready to ship.\n\n");
 	g_string_append (str, "Please read the details on the link *carefully* before you make the purchase.");
 	g_string_append (str, "http://www.hughski.com/buy.html\n\n");
-	g_string_append (str, "Thanks again for your support for this new and exciting project.\n\n");
+	g_string_append (str, "Thanks again for your support for this exciting project.\n\n");
 	g_string_append (str, "Many thanks,\n\n");
 	g_string_append (str, "Ania Hughes");
 
