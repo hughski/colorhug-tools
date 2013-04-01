@@ -247,27 +247,27 @@ ch_shipping_postage_to_price (ChShippingPostage postage)
 		break;
 	case CH_SHIPPING_POSTAGE_UK:
 	case CH_SHIPPING_POSTAGE_XUK:
-		return 2.0f;
+		return 2.2f;
 		break;
 	case CH_SHIPPING_POSTAGE_EUROPE:
 	case CH_SHIPPING_POSTAGE_XEUROPE:
-		return 3.0f;
+		return 3.5f;
 		break;
 	case CH_SHIPPING_POSTAGE_WORLD:
 	case CH_SHIPPING_POSTAGE_XWORLD:
-		return 4.0f;
+		return 4.7f;
 		break;
 	case CH_SHIPPING_POSTAGE_UK_SIGNED:
 	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
-		return 7.0f;
+		return 4.6f;
 		break;
 	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
 	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
-		return 8.0f;
+		return 8.8f;
 		break;
 	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
 	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
-		return 9.0f;
+		return 9.9f;
 		break;
 	case CH_SHIPPING_POSTAGE_AUK:
 	case CH_SHIPPING_POSTAGE_AEUROPE:
