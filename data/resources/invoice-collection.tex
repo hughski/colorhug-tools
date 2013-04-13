@@ -1,0 +1,73 @@
+\documentclass[a4paper,10pt,oneside]{letter}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage[british,UKenglish]{babel}
+\usepackage{fontenc}
+\usepackage{graphicx}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{hyperref}
+\author{Richard Hughes}
+\title{ColorHug Invoice}
+\date{28/08/2012}
+\thispagestyle{empty}
+\pagestyle{empty}
+\renewcommand{\familydefault}{\sfdefault}
+
+\begin{document}
+\large
+\renewcommand{\arraystretch}{1.5}
+
+\begin{minipage}[t]{2in}
+\textit{Supplier Address:}\\
+Hughski Limited\\
+9 Sidmouth Avenue\\
+Isleworth\\
+Middlesex\\
+TW7 4DW
+\end{minipage}
+
+Invoice number: \\
+Device numbers: \\
+
+\begin{flushright}
+ \today
+\end{flushright}
+
+\textbf{You bought a ColorHug!}
+
+I really appreciate you giving open hardware a try. Please join the colorhug-users Google group and tell us what you think. All announcements about new firmware updates and new client code will also be done on the mailing list.
+
+Things you might want to do now:
+
+\begin{itemize}
+\item Check everything is working correctly
+\item Create a display CCMX matrix if you have a photospectrometer
+\item Check versions of all the software if you don't want to use the LiveCD
+\item Check any frequently asked questions
+\end{itemize}
+
+You can do all these things by following the instructions on \\\url{http://www.hughski.com/owner.html}
+
+If you have any problems with the hardware, please just email \url{info@hughski.com} with as much information about the problem as possible. If you are using your own distribution, then please check with the LiveCD before assuming the hardware has failed.
+
+{%
+\newcommand{\mc}[3]{\multicolumn{#1}{#2}{#3}}
+\begin{center}
+\begin{tabular}{|l|l|c|c|}\hline
+\mc{1}{|c|}{\textbf{Quantity}} & \mc{1}{c|}{\textbf{Product}} & \textbf{Cost} & \textbf{Total}\\\hline
+\mc{1}{|c|}{1} & ColorHug (inc. elastic strap, USB and LiveCD) & \pounds60 & \pounds60\\\hline
+ &  &  & \textbf{\pounds60}\\\hline
+\end{tabular}
+\end{center}
+}%
+
+\vspace{10px}
+\hspace{50px}Many thanks,
+
+\hspace{75px}\includegraphics{/usr/share/colorhug-tools/signature.png}
+
+\hspace{100px}Richard Hughes
+
+\vspace{20px}
+
+\end{document}
