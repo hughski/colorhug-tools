@@ -951,7 +951,7 @@ ch_factory_measure (ChFactoryPrivate *priv)
 				       (gdouble) priv->samples_ti1_idx / (gdouble) priv->samples_ti1->len);
 
 	/* this has to be long enough for the screen to refresh */
-	g_timeout_add (400, (GSourceFunc) ch_factory_measure_cb, priv);
+	g_timeout_add (800, (GSourceFunc) ch_factory_measure_cb, priv);
 }
 
 /**
