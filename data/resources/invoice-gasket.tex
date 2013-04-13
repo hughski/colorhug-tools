@@ -1,0 +1,76 @@
+\documentclass[a4paper,10pt,oneside]{letter}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage[british,UKenglish]{babel}
+\usepackage{fontenc}
+\usepackage{graphicx}
+\usepackage[margin=0.8in]{geometry}
+\usepackage{hyperref}
+\author{Richard Hughes}
+\title{HugStrap Invoice}
+\date{13/04/2013}
+\thispagestyle{empty}
+\pagestyle{empty}
+\renewcommand{\familydefault}{\sfdefault}
+
+\begin{document}
+\large
+\renewcommand{\arraystretch}{1.5}
+
+\begin{minipage}[t]{4in}
+\textit{Customer Address:}\\
+$NAME$\\
+$ADDRESS1$\\
+$ADDRESS2$\\
+$ADDRESS3$\\
+$ADDRESS4$\\
+$ADDRESS5$\\
+\end{minipage}
+\begin{minipage}[t]{2in}
+\textit{Supplier Address:}\\
+Hughski Limited\\
+9 Sidmouth Avenue\\
+Isleworth\\
+Middlesex\\
+TW7 4DW
+\end{minipage}
+
+Invoice number: \texttt{$ORDER$}\\
+
+\begin{flushright}
+ \today
+\end{flushright}
+
+How to use your complimentary gasket upgrade:
+
+\begin{itemize}
+\item Remove the foam corner pads on your ColorHug device using a fingernail.
+\item Unpeel the backing sheet from the new gasket.
+\item Stick the gasket on the device so that the rubber grommit is approximately central.
+\item Reposition the gasket if required.
+\item Press firmly on the surface to adhere the gasket to the device.
+\end{itemize}
+
+If you want to keep up to date with our new developments then please follow our ColorHug Google+ page or join our colorhug-users mailing list.
+
+{%
+\newcommand{\mc}[3]{\multicolumn{#1}{#2}{#3}}
+\begin{center}
+\begin{tabular}{|l|l|c|c|}\hline
+\mc{1}{|c|}{\textbf{Quantity}} & \mc{1}{c|}{\textbf{Product}} & \textbf{Cost} & \textbf{Total}\\\hline
+\mc{1}{|c|}{1} & Gasket Upgrade\hspace{50mm} & \pounds0.00 & \pounds0.00\\\hline
+ & Delivery & \pounds$POSTAGE_PRICE$ & \pounds$POSTAGE_PRICE$\\\hline
+ &  &  & \textbf{\pounds$POSTAGE_PRICE$}\\\hline
+\end{tabular}
+\end{center}
+}%
+
+\vspace{10px}
+\hspace{50px}Many thanks,
+
+\hspace{75px}\includegraphics{/usr/share/colorhug-tools/signature.png}
+
+\hspace{100px}Richard Hughes
+
+\vspace{20px}
+\end{document}

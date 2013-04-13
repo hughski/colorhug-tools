@@ -406,13 +406,15 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 	    postage != CH_SHIPPING_POSTAGE_XWORLD &&
 	    postage != CH_SHIPPING_POSTAGE_XWORLD_SIGNED &&
 	    postage != CH_SHIPPING_POSTAGE_AWORLD &&
+	    postage != CH_SHIPPING_POSTAGE_GWORLD &&
 	    g_strstr_len (address, -1, "Russia") == NULL &&
 	    g_strstr_len (address, -1, "RUSSIA") == NULL) {
 		goto out;
 	}
 
 	str = ch_shipping_string_load (CH_DATA "/cn22.tex", NULL);
-	if (postage == CH_SHIPPING_POSTAGE_AWORLD) {
+	if (postage == CH_SHIPPING_POSTAGE_AWORLD ||
+	    postage == CH_SHIPPING_POSTAGE_GWORLD) {
 		ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/cn22-strap.png");
 	} else {
 		if (ch_shipping_device_to_price (postage) == 60) {
@@ -479,6 +481,10 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	    postage == CH_SHIPPING_POSTAGE_AEUROPE ||
 	    postage == CH_SHIPPING_POSTAGE_AWORLD) {
 		str = ch_shipping_string_load (CH_DATA "/invoice-straps.tex", NULL);
+	} else if (postage == CH_SHIPPING_POSTAGE_GUK ||
+		   postage == CH_SHIPPING_POSTAGE_GEUROPE ||
+		   postage == CH_SHIPPING_POSTAGE_GWORLD) {
+		str = ch_shipping_string_load (CH_DATA "/invoice-gasket.tex", NULL);
 	} else {
 		str = ch_shipping_string_load (CH_DATA "/invoice.tex", NULL);
 	}
@@ -1346,6 +1352,15 @@ ch_shipping_order_get_radio_postage (ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping15"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
 		postage = CH_SHIPPING_POSTAGE_AWORLD;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping16"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_GUK;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping17"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_GEUROPE;
+	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping18"));
+	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
+		postage = CH_SHIPPING_POSTAGE_GWORLD;
 	return postage;
 }
 
@@ -1405,7 +1420,10 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_order_devices"));
 	if (postage != CH_SHIPPING_POSTAGE_AUK &&
 	    postage != CH_SHIPPING_POSTAGE_AEUROPE &&
-	    postage != CH_SHIPPING_POSTAGE_AWORLD) {
+	    postage != CH_SHIPPING_POSTAGE_AWORLD &&
+	    postage != CH_SHIPPING_POSTAGE_GUK &&
+	    postage != CH_SHIPPING_POSTAGE_GEUROPE &&
+	    postage != CH_SHIPPING_POSTAGE_GWORLD) {
 		number_of_devices = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
 	}
 skip:
@@ -1512,14 +1530,12 @@ skip:
 		} else {
 			g_string_append (str, "Once the devices have been posted we will email again with the tracking number.\n");
 		}
+	} else if (postage == CH_SHIPPING_POSTAGE_AUK ||
+		   postage == CH_SHIPPING_POSTAGE_AEUROPE ||
+		   postage == CH_SHIPPING_POSTAGE_AWORLD) {
+		g_string_append (str, "Once the strap has been posted a confirmation email will be sent.\n");
 	} else {
-		if (number_of_devices == 0) {
-			g_string_append (str, "Once the strap has been posted a confirmation email will be sent.\n");
-		} else if (number_of_devices == 1) {
-			g_string_append (str, "Once the device has been posted a confirmation email will be sent.\n");
-		} else {
-			g_string_append (str, "Once the devices have been posted a confirmation email will be sent.\n");
-		}
+		g_string_append (str, "Once the gasket has been posted a confirmation email will be sent.\n");
 	}
 	g_string_append (str, "\n");
 	g_string_append (str, "Thanks again for your support for this exciting project.\n");
@@ -1610,18 +1626,21 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 	if (postage == CH_SHIPPING_POSTAGE_UK ||
 	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
 	    postage == CH_SHIPPING_POSTAGE_AUK ||
+	    postage == CH_SHIPPING_POSTAGE_GUK ||
 	    postage == CH_SHIPPING_POSTAGE_XUK ||
 	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 4 days.\n");
 	} else if (postage == CH_SHIPPING_POSTAGE_EUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
 		   postage == CH_SHIPPING_POSTAGE_AEUROPE ||
+		   postage == CH_SHIPPING_POSTAGE_GEUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_XEUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 8 days.\n");
 	} else if (postage == CH_SHIPPING_POSTAGE_WORLD ||
 		   postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED ||
 		   postage == CH_SHIPPING_POSTAGE_AWORLD ||
+		   postage == CH_SHIPPING_POSTAGE_GWORLD ||
 		   postage == CH_SHIPPING_POSTAGE_XWORLD ||
 		   postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED) {
 		g_string_append (str, "Please allow up to three weeks for delivery, although most items are delivered within 10 days.\n");

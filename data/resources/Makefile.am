@@ -5,6 +5,7 @@ pkgdata_DATA =						\
 	device-label.tex				\
 	drop-and-go.png					\
 	invoice-straps.tex				\
+	invoice-gasket.tex				\
 	invoice.tex					\
 	page.png					\
 	post-office.png					\

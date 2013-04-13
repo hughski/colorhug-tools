@@ -274,6 +274,11 @@ ch_shipping_postage_to_price (ChShippingPostage postage)
 	case CH_SHIPPING_POSTAGE_AWORLD:
 		return 3.5f;
 		break;
+	case CH_SHIPPING_POSTAGE_GUK:
+	case CH_SHIPPING_POSTAGE_GEUROPE:
+	case CH_SHIPPING_POSTAGE_GWORLD:
+		return 2.5f;
+		break;
 	default:
 		g_assert_not_reached ();
 		break;
@@ -324,6 +329,15 @@ ch_shipping_postage_to_service (ChShippingPostage postage)
 	case CH_SHIPPING_POSTAGE_AWORLD:
 		return "A sm pkt 65g";
 		break;
+	case CH_SHIPPING_POSTAGE_GUK:
+		return "1c Ltr";
+		break;
+	case CH_SHIPPING_POSTAGE_GEUROPE:
+		return "A Ltr";
+		break;
+	case CH_SHIPPING_POSTAGE_GWORLD:
+		return "A Ltr";
+		break;
 	default:
 		g_assert_not_reached ();
 		break;
@@ -360,6 +374,11 @@ ch_shipping_device_to_price (ChShippingPostage postage)
 	case CH_SHIPPING_POSTAGE_AUK:
 	case CH_SHIPPING_POSTAGE_AEUROPE:
 	case CH_SHIPPING_POSTAGE_AWORLD:
+		return 0;
+		break;
+	case CH_SHIPPING_POSTAGE_GUK:
+	case CH_SHIPPING_POSTAGE_GEUROPE:
+	case CH_SHIPPING_POSTAGE_GWORLD:
 		return 0;
 		break;
 	default:
@@ -407,6 +426,12 @@ ch_shipping_postage_to_string (ChShippingPostage postage)
 		return "AEUR";
 	if (postage == CH_SHIPPING_POSTAGE_AWORLD)
 		return "AWOR";
+	if (postage == CH_SHIPPING_POSTAGE_GUK)
+		return "GUK";
+	if (postage == CH_SHIPPING_POSTAGE_GEUROPE)
+		return "GEUR";
+	if (postage == CH_SHIPPING_POSTAGE_GWORLD)
+		return "GWOR";
 	return NULL;
 }
 
