@@ -814,8 +814,10 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 		goto out;
 	}
 
-	if (postage == CH_SHIPPING_POSTAGE_AUK) {
-		ch_shipping_string_replace (str, "$LETTER_CLASS$", "LARGE LETTER");
+	if (postage == CH_SHIPPING_POSTAGE_GUK ||
+	    postage == CH_SHIPPING_POSTAGE_GEUROPE ||
+	    postage == CH_SHIPPING_POSTAGE_GWORLD) {
+		ch_shipping_string_replace (str, "$LETTER_CLASS$", " ");
 	} else {
 		ch_shipping_string_replace (str, "$LETTER_CLASS$", "SMALL PACKAGE");
 	}
@@ -1533,9 +1535,9 @@ skip:
 	} else if (postage == CH_SHIPPING_POSTAGE_AUK ||
 		   postage == CH_SHIPPING_POSTAGE_AEUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_AWORLD) {
-		g_string_append (str, "Once the strap has been posted a confirmation email will be sent.\n");
+		g_string_append (str, "Once the strap and gasket upgrade has been posted a confirmation email will be sent.\n");
 	} else {
-		g_string_append (str, "Once the gasket has been posted a confirmation email will be sent.\n");
+		g_string_append (str, "Once the parcel has been posted a confirmation email will be sent.\n");
 	}
 	g_string_append (str, "\n");
 	g_string_append (str, "Thanks again for your support for this exciting project.\n");
@@ -1615,7 +1617,7 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 	str = g_string_new ("");
 	from = g_settings_get_string (priv->settings, "invoice-sender");
 	if (device_ids[0] == '-') {
-		g_string_append (str, "I'm pleased to tell your HugStrap has been dispatched.\n");
+		g_string_append (str, "I'm pleased to tell your accessory has been dispatched.\n");
 	} else if (tracking_number[0] == '\0' || g_strcmp0 (tracking_number, "n/a") == 0) {
 		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched.\n", device_ids);
 	} else {

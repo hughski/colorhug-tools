@@ -321,7 +321,7 @@ ch_shipping_postage_to_service (ChShippingPostage postage)
 		return "AISF 145g";
 		break;
 	case CH_SHIPPING_POSTAGE_AUK:
-		return "1c LL";
+		return "A sm pkt 65g";
 		break;
 	case CH_SHIPPING_POSTAGE_AEUROPE:
 		return "A sm pkt 65g";
