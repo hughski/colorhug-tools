@@ -997,7 +997,7 @@ ch_factory_print_device_label (ChFactoryPrivate *priv, guint32 device_serial)
 		goto out;
 	}
 	ch_shipping_string_replace (str, "$SERIAL$", g_strdup_printf ("%06i", device_serial));
-	ch_shipping_string_replace (str, "$BATCH$", g_strdup_printf ("%02i", 7));
+	ch_shipping_string_replace (str, "$BATCH$", g_strdup_printf ("%02i", 11));
 	ch_shipping_string_replace (str, "$DATE$", g_date_time_format (datetime, "%Y-%m-%d"));
 	g_date_time_unref (datetime);
 
