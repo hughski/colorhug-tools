@@ -37,6 +37,7 @@
 #include "ch-shipping-common.h"
 
 #define CH_FACTORY_AMBIENT_MIN		0.00001
+#define CH_FACTORY_BATCH_NUMBER		12
 
 #define CH_DEVICE_ICON_BOOTLOADER	"colorimeter-colorhug-inactive"
 #define CH_DEVICE_ICON_BUSY		"emblem-downloads"
@@ -997,7 +998,8 @@ ch_factory_print_device_label (ChFactoryPrivate *priv, guint32 device_serial)
 		goto out;
 	}
 	ch_shipping_string_replace (str, "$SERIAL$", g_strdup_printf ("%06i", device_serial));
-	ch_shipping_string_replace (str, "$BATCH$", g_strdup_printf ("%02i", 11));
+	ch_shipping_string_replace (str, "$BATCH$", g_strdup_printf ("%02i",
+								     CH_FACTORY_BATCH_NUMBER));
 	ch_shipping_string_replace (str, "$DATE$", g_date_time_format (datetime, "%Y-%m-%d"));
 	g_date_time_unref (datetime);
 
