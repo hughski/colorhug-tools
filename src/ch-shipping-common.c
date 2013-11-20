@@ -191,11 +191,16 @@ ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **erro
 
 	/* convert to pdf */
 	argv = g_ptr_array_new_with_free_func (g_free);
+	g_ptr_array_add (argv, g_strdup ("inkscape"));
+	g_ptr_array_add (argv, g_strdup_printf ("--file=%s", filename));
+	g_ptr_array_add (argv, g_strdup_printf ("--export-pdf=%s", filename_out));
+#if 0
 	g_ptr_array_add (argv, g_strdup ("rsvg-convert"));
 	g_ptr_array_add (argv, g_strdup ("--zoom=0.8"));
 	g_ptr_array_add (argv, g_strdup ("--format=pdf"));
 	g_ptr_array_add (argv, g_strdup_printf ("--output=%s", filename_out));
 	g_ptr_array_add (argv, g_strdup (filename));
+#endif
 	g_ptr_array_add (argv, NULL);
 	ret = g_spawn_sync (g_get_tmp_dir (), (gchar **) argv->pdata, NULL,
 			    G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL,
