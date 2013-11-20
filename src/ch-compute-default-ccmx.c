@@ -83,8 +83,6 @@ main (int argc, char **argv)
 	gint i;
 	gint retval = 0;
 
-	g_type_init ();
-
 	if (argc < 3) {
 		retval = 1;
 		g_warning ("need at least two arguments");
