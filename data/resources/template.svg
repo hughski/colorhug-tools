@@ -69,7 +69,7 @@
        y="1132.3622"
        x="160"
        id="image3068"
-       xlink:href="file:///home/hughsie/Code/ColorHug/tools/data/resources/page.png"
+       xlink:href="file:///home/hughsie/Code/colorhug-tools/data/resources/page.png"
        height="738.35596"
        width="1050.1729" />
     <rect
@@ -83,21 +83,21 @@
        y="358.36218"
        x="807.48956"
        id="image3146"
-       xlink:href="file:///home/hughsie/Code/ColorHug/tools/data/resources/card.png"
+       xlink:href="file:///home/hughsie/Code/colorhug-tools/data/resources/card.png"
        height="102"
        width="182.51038" />
     <image
        y="365.36218"
        x="52.326843"
        id="image3976"
-       xlink:href="file:///home/hughsie/Code/ColorHug/tools/data/resources/post-office.png"
+       xlink:href="file:///home/hughsie/Code/colorhug-tools/data/resources/post-office.png"
        height="77"
        width="97.673157" />
     <image
        y="362.36218"
        x="280"
        id="image4038"
-       xlink:href="file:///home/hughsie/Code/ColorHug/tools/data/resources/drop-and-go.png"
+       xlink:href="file:///home/hughsie/Code/colorhug-tools/data/resources/drop-and-go.png"
        height="45.41608"
        width="400" />
     <rect
@@ -304,7 +304,7 @@
        y="892.36218"
        x="838.30768"
        id="image4311"
-       xlink:href="file:///home/hughsie/Code/ColorHug/tools/data/resources/date-stamp.png"
+       xlink:href="file:///home/hughsie/Code/colorhug-tools/data/resources/date-stamp.png"
        height="94.000023"
        width="93.710793" />
     <text
@@ -502,7 +502,7 @@
        y="938.88666"
        x="492"
        id="image4554"
-       xlink:href="file:///home/hughsie/Code/ColorHug/tools/data/resources/signature.png"
+       xlink:href="file:///home/hughsie/Code/colorhug-tools/data/resources/signature.png"
        height="57.475487"
        width="100" />
     <text
