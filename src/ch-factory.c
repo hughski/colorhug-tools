@@ -37,7 +37,7 @@
 #include "ch-shipping-common.h"
 
 #define CH_FACTORY_AMBIENT_MIN		0.00001
-#define CH_FACTORY_BATCH_NUMBER		12
+#define CH_FACTORY_BATCH_NUMBER		13
 
 #define CH_DEVICE_ICON_BOOTLOADER	"colorimeter-colorhug-inactive"
 #define CH_DEVICE_ICON_BUSY		"emblem-downloads"
