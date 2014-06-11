@@ -1736,7 +1736,7 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	/* finds the colord device which has a specific property */
 	device = cd_client_find_device_by_property_sync (priv->client,
 							 CD_DEVICE_METADATA_XRANDR_NAME,
-							 "HDMI3",
+							 "DP2",
 							 NULL,
 							 &error);
 	if (device == NULL) {
