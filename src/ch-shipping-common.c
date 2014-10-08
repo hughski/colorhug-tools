@@ -218,7 +218,6 @@ ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **erro
 	g_ptr_array_add (argv_lpr, g_strdup ("lpr"));
 	if (printer != NULL)
 		g_ptr_array_add (argv_lpr, g_strdup_printf ("-P%s", printer));
-	g_ptr_array_add (argv_lpr, g_strdup_printf ("-# %i", 2));
 	g_ptr_array_add (argv_lpr, g_strdup (filename_out));
 	g_ptr_array_add (argv_lpr, NULL);
 	ret = g_spawn_sync (g_get_tmp_dir (), (gchar **) argv_lpr->pdata,
