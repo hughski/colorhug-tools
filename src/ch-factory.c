@@ -315,10 +315,14 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 				       NULL,
 				       &error);
 	if (ret) {
-		if (serial_number != 0xffffffff)
-			description = g_strdup_printf ("ColorHug #%06i", serial_number);
-		else
-			description = g_strdup ("ColorHug #XXXXXX");
+		if (serial_number != 0xffffffff) {
+			description = g_strdup_printf ("ColorHug%i #%06i",
+						       hw_version,
+						       serial_number);
+		} else {
+			description = g_strdup_printf ("ColorHug%i #XXXXXX",
+						       hw_version);
+		}
 		state = ch_database_device_get_state (priv->database,
 						      serial_number,
 						      NULL);
@@ -345,7 +349,7 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	}
 
 	/* check the hardware version */
-	if (hw_version != 1) {
+	if (hw_version > 2) {
 		error_tmp = g_strdup_printf ("HWver %i", hw_version);
 		ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_ERROR);
 		ch_factory_set_device_error (priv, device, error_tmp);
