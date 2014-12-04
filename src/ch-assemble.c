@@ -32,7 +32,6 @@ typedef struct {
 	GtkApplication	*application;
 	GtkBuilder	*builder;
 	GUsbContext	*usb_ctx;
-	GUsbDeviceList	*device_list;
 } ChAssemblePrivate;
 
 /**
@@ -257,7 +256,7 @@ ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 	ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
 
 	/* is the colorhug already plugged in? */
-	g_usb_device_list_coldplug (priv->device_list);
+	g_usb_context_enumerate (priv->usb_ctx);
 
 	/* show main UI */
 	gtk_window_maximize (GTK_WINDOW (main_window));
@@ -270,7 +269,7 @@ out:
  * ch_assemble_device_added_cb:
  **/
 static void
-ch_assemble_device_added_cb (GUsbDeviceList *list,
+ch_assemble_device_added_cb (GUsbContext *ctx,
 			     GUsbDevice *device,
 			     ChAssemblePrivate *priv)
 {
@@ -285,7 +284,7 @@ ch_assemble_device_added_cb (GUsbDeviceList *list,
  * ch_assemble_device_removed_cb:
  **/
 static void
-ch_assemble_device_removed_cb (GUsbDeviceList *list,
+ch_assemble_device_removed_cb (GUsbContext *ctx,
 			       GUsbDevice *device,
 			       ChAssemblePrivate *priv)
 {
@@ -348,10 +347,9 @@ main (int argc, char **argv)
 	priv = g_new0 (ChAssemblePrivate, 1);
 	priv->usb_ctx = g_usb_context_new (NULL);
 	priv->device_queue = ch_device_queue_new ();
-	priv->device_list = g_usb_device_list_new (priv->usb_ctx);
-	g_signal_connect (priv->device_list, "device-added",
+	g_signal_connect (priv->usb_ctx, "device-added",
 			  G_CALLBACK (ch_assemble_device_added_cb), priv);
-	g_signal_connect (priv->device_list, "device-removed",
+	g_signal_connect (priv->usb_ctx, "device-removed",
 			  G_CALLBACK (ch_assemble_device_removed_cb), priv);
 
 	/* ensure single instance */
@@ -372,8 +370,6 @@ main (int argc, char **argv)
 	status = g_application_run (G_APPLICATION (priv->application), argc, argv);
 
 	g_object_unref (priv->application);
-	if (priv->device_list != NULL)
-		g_object_unref (priv->device_list);
 	if (priv->device_queue != NULL)
 		g_object_unref (priv->device_queue);
 	if (priv->usb_ctx != NULL)

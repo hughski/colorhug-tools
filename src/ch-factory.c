@@ -60,7 +60,6 @@ typedef struct {
 	GtkBuilder	*builder;
 	GtkWindow	*sample_window;
 	GUsbContext	*usb_ctx;
-	GUsbDeviceList	*device_list;
 	ChDatabase	*database;
 	GPtrArray	*samples_ti1;
 	guint		 samples_ti1_idx;
@@ -1715,7 +1714,7 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	gtk_style_context_set_junction_sides (context, GTK_JUNCTION_TOP);
 
 	/* is the colorhug already plugged in? */
-	g_usb_device_list_coldplug (priv->device_list);
+	g_usb_context_enumerate (priv->usb_ctx);
 
 	/* get the firmware */
 	filename = g_build_filename (priv->local_firmware_uri,
@@ -1777,7 +1776,7 @@ out:
  * ch_factory_device_added_cb:
  **/
 static void
-ch_factory_device_added_cb (GUsbDeviceList *list,
+ch_factory_device_added_cb (GUsbContext *usb_ctx,
 			    GUsbDevice *device,
 			    ChFactoryPrivate *priv)
 {
@@ -1792,9 +1791,9 @@ ch_factory_device_added_cb (GUsbDeviceList *list,
  * ch_factory_device_removed_cb:
  **/
 static void
-ch_factory_device_removed_cb (GUsbDeviceList *list,
-			    GUsbDevice *device,
-			    ChFactoryPrivate *priv)
+ch_factory_device_removed_cb (GUsbContext *usb_ctx,
+			      GUsbDevice *device,
+			      ChFactoryPrivate *priv)
 {
 	if (ch_device_is_colorhug (device)) {
 		g_debug ("Removed ColorHug: %s",
@@ -1899,10 +1898,9 @@ main (int argc, char **argv)
 			  "progress-changed",
 			  G_CALLBACK (ch_factory_device_queue_progress_changed_cb),
 			  priv);
-	priv->device_list = g_usb_device_list_new (priv->usb_ctx);
-	g_signal_connect (priv->device_list, "device-added",
+	g_signal_connect (priv->usb_ctx, "device-added",
 			  G_CALLBACK (ch_factory_device_added_cb), priv);
-	g_signal_connect (priv->device_list, "device-removed",
+	g_signal_connect (priv->usb_ctx, "device-removed",
 			  G_CALLBACK (ch_factory_device_removed_cb), priv);
 
 	/* for calibration */
@@ -1933,8 +1931,6 @@ main (int argc, char **argv)
 	g_object_unref (priv->application);
 	if (priv->updates != NULL)
 		g_ptr_array_unref (priv->updates);
-	if (priv->device_list != NULL)
-		g_object_unref (priv->device_list);
 	if (priv->device_queue != NULL)
 		g_object_unref (priv->device_queue);
 	if (priv->usb_ctx != NULL)
