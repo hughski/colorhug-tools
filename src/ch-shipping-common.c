@@ -447,6 +447,7 @@ ch_shipping_send_email (const gchar *sender,
 			const gchar *recipient,
 			const gchar *subject,
 			const gchar *body,
+			const gchar *authtoken,
 			GError **error)
 {
 	gboolean ret;
@@ -475,7 +476,8 @@ ch_shipping_send_email (const gchar *sender,
 	cmd = g_strdup_printf ("curl -n --ssl-reqd --mail-from \"%s\" "
 			       "--mail-rcpt \"%s\" "
 			       "--url smtps://smtp.gmail.com:465 -T "
-			       "%s", sender, recipient, filename);
+			       "%s -u %s",
+			       sender, recipient, filename, authtoken);
 	g_debug ("Using '%s' to send email", cmd);
 	ret = g_spawn_command_line_sync (cmd, NULL, &spawn_stderr, &retval, error);
 	if (!ret)

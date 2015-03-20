@@ -73,6 +73,7 @@ gboolean	 ch_shipping_send_email		(const gchar	*sender,
 						 const gchar	*recipient,
 						 const gchar	*subject,
 						 const gchar	*body,
+						 const gchar	*authtoken,
 						 GError		**error);
 GString		*ch_shipping_string_load	(const gchar	*filename,
 						 GError		**error);

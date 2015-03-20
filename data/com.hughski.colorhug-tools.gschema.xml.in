@@ -25,6 +25,10 @@
       <_summary>The email address of the invoice sender</_summary>
       <_description>The email address of the invoice sender.</_description>
     </key>
+    <key name="invoice-auth" type="s">
+      <default>''</default>
+      <_summary>The email authentication string, e.g. hughskiauto:foobarbaz</_summary>
+    </key>
     <key name="database-uri" type="s">
       <default>''</default>
       <_summary>The location of where the database can be found</_summary>

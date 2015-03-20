@@ -48,6 +48,7 @@ colorhug_factory_CFLAGS =				\
 	$(WARNINGFLAGS_C)
 
 colorhug_shipping_SOURCES =				\
+	ch-cleanup.h					\
 	ch-cell-renderer-date.c				\
 	ch-cell-renderer-date.h				\
 	ch-cell-renderer-postage.c			\

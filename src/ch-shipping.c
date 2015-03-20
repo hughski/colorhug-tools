@@ -1171,6 +1171,7 @@ ch_shipping_queue_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 					      recipient,
 					      "ColorHug order",
 					      str->str,
+					      g_settings_get_string (priv->settings, "invoice-auth"),
 					      &error);
 		if (!ret) {
 			ch_shipping_error_dialog (priv, "Failed to send email", error->message);
@@ -1263,6 +1264,7 @@ ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 					      recipient,
 					      "Your ColorHug is now in stock!",
 					      str->str,
+					      g_settings_get_string (priv->settings, "invoice-auth"),
 					      &error);
 		if (!ret) {
 			ch_shipping_error_dialog (priv, "Failed to send email", error->message);
@@ -1565,6 +1567,7 @@ skip:
 				      email,
 				      "Your ColorHug order has been received",
 				      str->str,
+				      g_settings_get_string (priv->settings, "invoice-auth"),
 				      &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "Failed to send email", error->message);
@@ -1657,6 +1660,7 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 				      email,
 				      "Your order has been dispatched!",
 				      str->str,
+				      g_settings_get_string (priv->settings, "invoice-auth"),
 				      &error);
 	if (!ret) {
 		ch_shipping_error_dialog (priv, "Failed to send email", error->message);
