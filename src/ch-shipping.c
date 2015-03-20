@@ -413,12 +413,13 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 	}
 
 	str = ch_shipping_string_load (CH_DATA "/cn22.tex", NULL);
-	if (postage == CH_SHIPPING_POSTAGE_AWORLD ||
-	    postage == CH_SHIPPING_POSTAGE_GWORLD) {
+	if (postage == CH_SHIPPING_POSTAGE_AWORLD) {
 		ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/cn22-strap.png");
 	} else {
 		if (ch_shipping_device_to_price (postage) == 60) {
 			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping60.png");
+		} else if (ch_shipping_device_to_price (postage) == 20) {
+			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping20.png");
 		} else {
 			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping48.png");
 		}
@@ -484,7 +485,7 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	} else if (postage == CH_SHIPPING_POSTAGE_GUK ||
 		   postage == CH_SHIPPING_POSTAGE_GEUROPE ||
 		   postage == CH_SHIPPING_POSTAGE_GWORLD) {
-		str = ch_shipping_string_load (CH_DATA "/invoice-gasket.tex", NULL);
+		str = ch_shipping_string_load (CH_DATA "/invoice-als.tex", NULL);
 	} else {
 		str = ch_shipping_string_load (CH_DATA "/invoice.tex", NULL);
 	}
@@ -814,14 +815,7 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 		goto out;
 	}
 
-	if (postage == CH_SHIPPING_POSTAGE_GUK ||
-	    postage == CH_SHIPPING_POSTAGE_GEUROPE ||
-	    postage == CH_SHIPPING_POSTAGE_GWORLD) {
-		ch_shipping_string_replace (str, "$LETTER_CLASS$", " ");
-	} else {
-		ch_shipping_string_replace (str, "$LETTER_CLASS$", "SMALL PACKAGE");
-	}
-
+	ch_shipping_string_replace (str, "$LETTER_CLASS$", "SMALL PACKAGE");
 	ch_shipping_string_replace (str, "$NAME$", name);
 	ch_shipping_string_replace (str, "$ADDRESS1$", address_split[0]);
 	ch_shipping_string_replace (str, "$ADDRESS2$", address_split[1]);

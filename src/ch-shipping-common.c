@@ -281,7 +281,7 @@ ch_shipping_postage_to_price (ChShippingPostage postage)
 	case CH_SHIPPING_POSTAGE_GUK:
 	case CH_SHIPPING_POSTAGE_GEUROPE:
 	case CH_SHIPPING_POSTAGE_GWORLD:
-		return 2.5f;
+		return 0.0f;
 		break;
 	default:
 		g_assert_not_reached ();
@@ -334,13 +334,13 @@ ch_shipping_postage_to_service (ChShippingPostage postage)
 		return "A sm pkt 65g";
 		break;
 	case CH_SHIPPING_POSTAGE_GUK:
-		return "1c Ltr";
+		return "A sm pkt 20g";
 		break;
 	case CH_SHIPPING_POSTAGE_GEUROPE:
-		return "A Ltr";
+		return "A sm pkt 20g";
 		break;
 	case CH_SHIPPING_POSTAGE_GWORLD:
-		return "A Ltr";
+		return "A sm pkt 20g";
 		break;
 	default:
 		g_assert_not_reached ();
@@ -383,7 +383,7 @@ ch_shipping_device_to_price (ChShippingPostage postage)
 	case CH_SHIPPING_POSTAGE_GUK:
 	case CH_SHIPPING_POSTAGE_GEUROPE:
 	case CH_SHIPPING_POSTAGE_GWORLD:
-		return 0;
+		return 20;
 		break;
 	default:
 		g_assert_not_reached ();
