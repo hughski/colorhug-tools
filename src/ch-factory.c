@@ -36,8 +36,7 @@
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
-#define CH_FACTORY_AMBIENT_MIN		0.00001
-#define CH_FACTORY_BATCH_NUMBER		13
+#define CH_FACTORY_BATCH_NUMBER		16
 
 #define CH_DEVICE_ICON_BOOTLOADER	"colorimeter-colorhug-inactive"
 #define CH_DEVICE_ICON_BUSY		"emblem-downloads"
@@ -1221,6 +1220,7 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gchar *error_tmp;
 	gchar *filename;
 	gchar *local_patches_source;
+	gdouble ambient_min = 0.00001f;
 	GError *error = NULL;
 	GPtrArray *devices = NULL;
 	guint16 calibration_map[6];
@@ -1306,12 +1306,14 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 	for (i = 0; i < devices->len; i++) {
 		device = g_ptr_array_index (devices, i);
-		if (rgb_ambient[i].R < CH_FACTORY_AMBIENT_MIN ||
-		    rgb_ambient[i].B < CH_FACTORY_AMBIENT_MIN ||
-		    rgb_ambient[i].B < CH_FACTORY_AMBIENT_MIN) {
+		if (rgb_ambient[i].R < ambient_min ||
+		    rgb_ambient[i].G < ambient_min ||
+		    rgb_ambient[i].B < ambient_min) {
 			error_tmp = g_strdup_printf ("ambient too low: %f,%f,%f < %f",
-						     rgb_tmp.R, rgb_tmp.G, rgb_tmp.B,
-						     CH_FACTORY_AMBIENT_MIN);
+						     rgb_tmp.R,
+						     rgb_tmp.G,
+						     rgb_tmp.B,
+						     ambient_min);
 			ch_factory_set_device_enabled (priv, device, FALSE);
 			ch_factory_set_device_error (priv, device, error_tmp);
 			g_free (error_tmp);
