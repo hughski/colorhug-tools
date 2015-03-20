@@ -27,6 +27,7 @@ colorhug_assemble_CFLAGS =				\
 	$(WARNINGFLAGS_C)
 
 colorhug_factory_SOURCES =				\
+	ch-cleanup.h					\
 	ch-flash-md.c					\
 	ch-flash-md.h					\
 	ch-database.c					\

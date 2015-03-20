@@ -27,11 +27,17 @@
 #include <colord.h>
 #include <colorhug.h>
 
+#include "ch-cleanup.h"
+
 typedef struct {
 	ChDeviceQueue	*device_queue;
+	GUsbDevice	*device;
 	GtkApplication	*application;
 	GtkBuilder	*builder;
 	GUsbContext	*usb_ctx;
+	gchar		*firmware_fn;
+	gsize		 firmware_len;
+	guint8		*firmware_data;
 } ChAssemblePrivate;
 
 /**
@@ -123,6 +129,65 @@ ch_assemble_set_color (ChAssemblePrivate *priv,
 }
 
 /**
+ * ch_assemble_set_serial_cb:
+ **/
+static void
+ch_assemble_set_serial_cb (GObject *source, GAsyncResult *res, gpointer user_data)
+{
+	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
+	_cleanup_error_free_ GError *error = NULL;
+
+	/* get result */
+	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
+		g_warning ("Failed to set flash success number: %s", error->message);
+		return;
+	}
+	ch_assemble_set_label (priv, _("All okay!"));
+	ch_assemble_set_color (priv, 0.0f, 1.0f, 0.0f);
+}
+
+/**
+ * ch_assemble_boot_flash_cb:
+ **/
+static void
+ch_assemble_boot_flash_cb (GObject *source, GAsyncResult *res, gpointer user_data)
+{
+	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
+	_cleanup_error_free_ GError *error = NULL;
+
+	/* get result */
+	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
+		g_warning ("Failed to boot firmware: %s", error->message);
+		return;
+	}
+}
+
+/**
+ * ch_assemble_firmware_cb:
+ **/
+static void
+ch_assemble_firmware_cb (GObject *source, GAsyncResult *res, gpointer user_data)
+{
+	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
+	_cleanup_error_free_ GError *error = NULL;
+
+	/* get result */
+	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
+		g_warning ("Failed to flash firmware: %s", error->message);
+		return;
+	}
+
+	ch_assemble_set_label (priv, _("Booting firmware..."));
+	ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
+	ch_device_queue_boot_flash (priv->device_queue, priv->device);
+	ch_device_queue_process_async (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       NULL,
+				       ch_assemble_boot_flash_cb,
+				       priv);
+}
+
+/**
  * ch_assemble_self_test_cb:
  **/
 static void
@@ -131,14 +196,10 @@ ch_assemble_self_test_cb (GObject *source,
 			  gpointer user_data)
 {
 	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
-	gboolean ret;
-	GError *error = NULL;
+	_cleanup_error_free_ GError *error = NULL;
 
 	/* get result */
-	ret = ch_device_queue_process_finish (priv->device_queue,
-					      res,
-					      &error);
-	if (!ret) {
+	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
 		switch (error->code) {
 		case CH_ERROR_SELF_TEST_SENSOR:
 			ch_assemble_set_color (priv, 1.0f, 0.0f, 0.0f);
@@ -175,24 +236,40 @@ ch_assemble_self_test_cb (GObject *source,
 		}
 		g_debug ("failed to self test [%i]: %s",
 			 error->code, error->message);
-		g_error_free (error);
 		return;
 	}
 	ch_assemble_set_label (priv, _("All okay!"));
 	ch_assemble_set_color (priv, 0.0f, 1.0f, 0.0f);
+
+	/* flash firmware */
+	switch (ch_device_get_mode (priv->device)) {
+	case CH_DEVICE_MODE_BOOTLOADER_ALS:
+		ch_assemble_set_label (priv, _("Writing firmware..."));
+		ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
+		ch_device_queue_write_firmware (priv->device_queue, priv->device,
+						priv->firmware_data, priv->firmware_len);
+		ch_device_queue_process_async (priv->device_queue,
+					       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+					       NULL,
+					       ch_assemble_firmware_cb,
+					       priv);
+		break;
+	default:
+		break;
+	}
 }
 
 /**
- * ch_assemble_got_device:
+ * ch_assemble_got_device_bl:
  **/
 static void
-ch_assemble_got_device (ChAssemblePrivate *priv, GUsbDevice *device)
+ch_assemble_got_device_bl (ChAssemblePrivate *priv)
 {
-	gboolean ret;
+	_cleanup_error_free_ GError *error = NULL;
 
 	/* open device */
-	ret = ch_device_open (device, NULL);
-	if (!ret) {
+	if (!ch_device_open (priv->device, &error)) {
+		g_warning ("Failed to open: %s", error->message);
 		/* TRANSLATORS: permissions error perhaps? */
 		ch_assemble_set_label (priv, _("Failed to open device"));
 		ch_assemble_set_color (priv, 0, 0, 0);
@@ -203,7 +280,7 @@ ch_assemble_got_device (ChAssemblePrivate *priv, GUsbDevice *device)
 	ch_assemble_set_label (priv, _("Testing device..."));
 	ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
 	ch_device_queue_self_test (priv->device_queue,
-				   device);
+				   priv->device);
 	ch_device_queue_process_async (priv->device_queue,
 				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
 				       NULL,
@@ -212,10 +289,37 @@ ch_assemble_got_device (ChAssemblePrivate *priv, GUsbDevice *device)
 }
 
 /**
+ * ch_assemble_got_device_fw:
+ **/
+static void
+ch_assemble_got_device_fw (ChAssemblePrivate *priv)
+{
+	_cleanup_error_free_ GError *error = NULL;
+
+	/* open device */
+	if (!ch_device_open (priv->device, &error)) {
+		g_warning ("Failed to open: %s", error->message);
+		/* TRANSLATORS: permissions error perhaps? */
+		ch_assemble_set_label (priv, _("Failed to open device"));
+		ch_assemble_set_color (priv, 0, 0, 0);
+		return;
+	}
+
+	ch_assemble_set_label (priv, _("Setting flash success..."));
+	ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
+	ch_device_queue_set_flash_success (priv->device_queue, priv->device, 1);
+	ch_device_queue_process_async (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       NULL,
+				       ch_assemble_set_serial_cb,
+				       priv);
+}
+
+/**
  * ch_assemble_removed_device:
  **/
 static void
-ch_assemble_removed_device (ChAssemblePrivate *priv, GUsbDevice *device)
+ch_assemble_removed_device (ChAssemblePrivate *priv)
 {
 	ch_assemble_set_label (priv, _("No device detected"));
 	ch_assemble_set_color (priv, 0.0f, 0.0f, 0.0f);
@@ -227,7 +331,7 @@ ch_assemble_removed_device (ChAssemblePrivate *priv, GUsbDevice *device)
 static void
 ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 {
-	GError *error = NULL;
+	_cleanup_error_free_ GError *error = NULL;
 	gint retval;
 	GtkWidget *main_window;
 
@@ -237,10 +341,18 @@ ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 					    CH_DATA "/ch-assemble.ui",
 					    &error);
 	if (retval == 0) {
-		g_warning ("failed to load ui: %s",
-			   error->message);
-		g_error_free (error);
-		goto out;
+		g_warning ("failed to load ui: %s", error->message);
+		return;
+	}
+
+	/* open firmware */
+	if (!g_file_get_contents (priv->firmware_fn,
+				  (gchar **) &priv->firmware_data,
+				  &priv->firmware_len,
+				  &error)) {
+		g_warning ("Failed to open firmware file %s: %s",
+			   priv->firmware_fn, error->message);
+		return;
 	}
 
 	/* add application specific icons to search path */
@@ -261,8 +373,6 @@ ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 	/* show main UI */
 	gtk_window_maximize (GTK_WINDOW (main_window));
 	gtk_widget_show (main_window);
-out:
-	return;
 }
 
 /**
@@ -273,10 +383,31 @@ ch_assemble_device_added_cb (GUsbContext *ctx,
 			     GUsbDevice *device,
 			     ChAssemblePrivate *priv)
 {
-	if (ch_device_is_colorhug (device)) {
-		g_debug ("Added ColorHug: %s",
+	switch (ch_device_get_mode (device)) {
+	case CH_DEVICE_MODE_BOOTLOADER:
+	case CH_DEVICE_MODE_BOOTLOADER2:
+	case CH_DEVICE_MODE_BOOTLOADER_PLUS:
+	case CH_DEVICE_MODE_BOOTLOADER_ALS:
+		g_debug ("Added ColorHug Bootloader: %s",
 			 g_usb_device_get_platform_id (device));
-		ch_assemble_got_device (priv, device);
+		if (priv->device != NULL)
+			g_object_unref (priv->device);
+		priv->device = g_object_ref (device);
+		ch_assemble_got_device_bl (priv);
+		break;
+	case CH_DEVICE_MODE_FIRMWARE:
+	case CH_DEVICE_MODE_FIRMWARE2:
+	case CH_DEVICE_MODE_FIRMWARE_PLUS:
+	case CH_DEVICE_MODE_FIRMWARE_ALS:
+		g_debug ("Added ColorHug Firmware: %s",
+			 g_usb_device_get_platform_id (device));
+		if (priv->device != NULL)
+			g_object_unref (priv->device);
+		priv->device = g_object_ref (device);
+		ch_assemble_got_device_fw (priv);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -291,7 +422,7 @@ ch_assemble_device_removed_cb (GUsbContext *ctx,
 	if (ch_device_is_colorhug (device)) {
 		g_debug ("Removed ColorHug: %s",
 			 g_usb_device_get_platform_id (device));
-		ch_assemble_removed_device (priv, device);
+		ch_assemble_removed_device (priv);
 	}
 }
 
@@ -347,6 +478,7 @@ main (int argc, char **argv)
 	priv = g_new0 (ChAssemblePrivate, 1);
 	priv->usb_ctx = g_usb_context_new (NULL);
 	priv->device_queue = ch_device_queue_new ();
+	priv->firmware_fn = g_strdup ("/home/hughsie/Code/ColorHug/ColorHugALS/firmware-releases/3.0.2/firmware.bin");
 	g_signal_connect (priv->usb_ctx, "device-added",
 			  G_CALLBACK (ch_assemble_device_added_cb), priv);
 	g_signal_connect (priv->usb_ctx, "device-removed",
@@ -376,6 +508,8 @@ main (int argc, char **argv)
 		g_object_unref (priv->usb_ctx);
 	if (priv->builder != NULL)
 		g_object_unref (priv->builder);
+	g_free (priv->firmware_data);
+	g_free (priv->firmware_fn);
 	g_free (priv);
 	return status;
 }
