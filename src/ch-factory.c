@@ -1,6 +1,6 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 8 -*-
  *
- * Copyright (C) 2009-2012 Richard Hughes <richard@hughsie.com>
+ * Copyright (C) 2009-2015 Richard Hughes <richard@hughsie.com>
  *
  * Licensed under the GNU General Public License Version 2
  *
@@ -32,7 +32,7 @@
 #include <colorhug.h>
 #include <canberra-gtk.h>
 
-#include "ch-flash-md.h"
+#include "ch-cleanup.h"
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
@@ -50,10 +50,6 @@ typedef struct {
 	ChDeviceQueue	*device_queue;
 	gboolean	 in_calibration;
 	gchar		*local_calibration_uri;
-	gchar		*local_firmware_uri;
-	gchar		*firmware_data;
-	gsize		 firmware_size;
-	GPtrArray	*updates;
 	GSettings	*settings;
 	GtkApplication	*application;
 	GtkBuilder	*builder;
@@ -415,207 +411,9 @@ ch_factory_get_active_devices (ChFactoryPrivate *priv)
 			continue;
 		}
 		g_ptr_array_add (devices, g_object_ref (device));
-		g_object_unref (device);
 		ret = gtk_tree_model_iter_next (model, &iter);
 	}
 	return devices;
-}
-
-/**
- * ch_factory_measure_firmware_boot_cb:
- **/
-static void
-ch_factory_measure_firmware_boot_cb (GObject *source,
-				     GAsyncResult *res,
-				     gpointer user_data)
-{
-	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
-	gboolean ret;
-	GError *error = NULL;
-
-	/* get result */
-	ret = ch_device_queue_process_finish (priv->device_queue,
-					      res,
-					      &error);
-	if (!ret) {
-		g_warning ("failed to boot flash: %s",
-			   error->message);
-		g_error_free (error);
-	}
-}
-
-/**
- * ch_factory_measure_firmware_verify_cb:
- **/
-static void
-ch_factory_measure_firmware_verify_cb (GObject *source,
-				       GAsyncResult *res,
-				       gpointer user_data)
-{
-	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
-	gboolean ret;
-	GError *error = NULL;
-	GPtrArray *devices = NULL;
-	guint i;
-	GUsbDevice *device;
-
-	/* get result */
-	ret = ch_device_queue_process_finish (priv->device_queue,
-					      res,
-					      &error);
-	if (!ret) {
-		g_warning ("failed to verify firmware on devices: %s",
-			   error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* boot flash */
-	devices = ch_factory_get_active_devices (priv);
-	for (i = 0; i < devices->len; i++) {
-		device = g_ptr_array_index (devices, i);
-		ch_device_queue_boot_flash (priv->device_queue,
-					    device);
-	}
-	ch_device_queue_process_async (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
-				       NULL,
-				       ch_factory_measure_firmware_boot_cb,
-				       priv);
-out:
-	if (devices != NULL)
-		g_ptr_array_unref (devices);
-}
-
-/**
- * ch_factory_measure_firmware_write_cb:
- **/
-static void
-ch_factory_measure_firmware_write_cb (GObject *source,
-				      GAsyncResult *res,
-				      gpointer user_data)
-{
-	gboolean ret;
-	GError *error = NULL;
-	GPtrArray *devices = NULL;
-	guint i;
-	GUsbDevice *device;
-	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
-
-	/* get result */
-	ret = ch_device_queue_process_finish (priv->device_queue,
-					      res,
-					      &error);
-	if (!ret) {
-		g_warning ("failed to write firmware on devices: %s",
-			   error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* verify flash code */
-	devices = ch_factory_get_active_devices (priv);
-	for (i = 0; i < devices->len; i++) {
-		device = g_ptr_array_index (devices, i);
-		ch_device_queue_verify_firmware (priv->device_queue,
-						 device,
-						 (const guint8 *) priv->firmware_data,
-						 priv->firmware_size);
-	}
-	ch_device_queue_process_async (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
-				       NULL,
-				       ch_factory_measure_firmware_verify_cb,
-				       priv);
-out:
-	if (devices != NULL)
-		g_ptr_array_unref (devices);
-}
-
-/**
- * ch_factory_ensure_firmware_data:
- **/
-static gboolean
-ch_factory_ensure_firmware_data (ChFactoryPrivate *priv, GError **error)
-{
-	gboolean ret = TRUE;
-	guint i;
-	ChFlashUpdate *update_tmp = NULL;
-	gchar *filename = NULL;
-
-	if (priv->firmware_data != NULL)
-		goto out;
-
-	/* get the newest stable firmware */
-	for (i = 0; i < priv->updates->len; i++) {
-		update_tmp = g_ptr_array_index (priv->updates, i);
-		if (update_tmp->state == CH_FLASH_MD_STATE_STABLE)
-			break;
-	}
-	if (update_tmp == NULL) {
-		ret = FALSE;
-		g_set_error_literal (error, 1, 0,
-				     "Failed to find any stable firmware");
-		goto out;
-	}
-	filename = g_build_filename (priv->local_firmware_uri,
-				     update_tmp->filename,
-				     NULL);
-
-	/* load file */
-	g_debug ("using filename %s", filename);
-	ret = g_file_get_contents (filename,
-				   &priv->firmware_data,
-				   &priv->firmware_size,
-				   error);
-	if (!ret)
-		goto out;
-out:
-	g_free (filename);
-	return ret;
-}
-
-/**
- * ch_factory_flash_button_cb:
- **/
-static void
-ch_factory_flash_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	gboolean ret;
-	GError *error = NULL;
-	GPtrArray *devices = NULL;
-	guint i;
-	GUsbDevice *device;
-
-	/* get the newest stable firmware */
-	ret = ch_factory_ensure_firmware_data (priv, &error);
-	if (!ret) {
-		g_warning ("failed to read firmware: %s",
-			   error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* write flash code */
-	devices = ch_factory_get_active_devices (priv);
-	for (i = 0; i < devices->len; i++) {
-		device = g_ptr_array_index (devices, i);
-		ch_device_queue_set_flash_success (priv->device_queue,
-						   device,
-						   0);
-		ch_device_queue_write_firmware (priv->device_queue,
-						device,
-						(const guint8 *) priv->firmware_data,
-						priv->firmware_size);
-	}
-	ch_device_queue_process_async (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONFATAL_ERRORS,
-				       NULL,
-				       ch_factory_measure_firmware_write_cb,
-				       priv);
-out:
-	if (devices != NULL)
-		g_ptr_array_unref (devices);
 }
 
 /**
@@ -712,45 +510,6 @@ ch_factory_serial_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 				       NULL,
 				       ch_factory_set_serial_cb,
 				       priv);
-out:
-	g_free (filename);
-}
-
-/**
- * ch_factory_check_leds_button_cb:
- **/
-static void
-ch_factory_check_leds_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	gboolean ret;
-	GError *error = NULL;
-	GPtrArray *devices;
-	guint i;
-	GUsbDevice *device;
-
-	/* turn on all the LEDs */
-	devices = ch_factory_get_active_devices (priv);
-	for (i = 0; i < devices->len; i++) {
-		device = g_ptr_array_index (devices, i);
-		ch_device_queue_set_leds (priv->device_queue,
-					  device,
-					  1,
-					  50,
-					  100,
-					  1);
-	}
-
-	/* process queue */
-	ret = ch_device_queue_process (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
-				       NULL,
-				       &error);
-	if (!ret) {
-		g_warning ("failed to set leds on devices: %s",
-			   error->message);
-		g_error_free (error);
-	}
-	g_ptr_array_unref (devices);
 }
 
 /**
@@ -1356,65 +1115,6 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* take the measurements */
 	priv->samples_ti1_idx = 0;
 	ch_factory_measure (priv);
-out:
-	g_free (local_patches_source);
-	if (devices != NULL)
-		g_ptr_array_unref (devices);
-	g_free (filename);
-}
-
-/**
- * ch_factory_boot_cb:
- **/
-static void
-ch_factory_boot_cb (GObject *source,
-		    GAsyncResult *res,
-		    gpointer user_data)
-{
-	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
-	gboolean ret;
-	GError *error = NULL;
-
-	/* get result */
-	ret = ch_device_queue_process_finish (priv->device_queue,
-					      res,
-					      &error);
-	if (!ret) {
-		g_warning ("failed to boot: %s",
-			   error->message);
-		g_error_free (error);
-	}
-}
-
-/**
- * ch_factory_boot_button_cb:
- **/
-static void
-ch_factory_boot_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	GPtrArray *devices;
-	guint i;
-	GUsbDevice *device;
-
-	/* turn on all the LEDs */
-	devices = ch_factory_get_active_devices (priv);
-	for (i = 0; i < devices->len; i++) {
-		device = g_ptr_array_index (devices, i);
-		g_debug ("resetting %s",
-			 g_usb_device_get_platform_id (device));
-		ch_factory_set_device_state (priv,
-					     device,
-					     CH_DEVICE_ICON_BUSY);
-		ch_device_queue_reset (priv->device_queue, device);
-	}
-
-	/* process queue */
-	ch_device_queue_process_async (priv->device_queue,
-				       CH_DEVICE_QUEUE_PROCESS_FLAGS_CONTINUE_ERRORS,
-				       NULL,
-				       ch_factory_boot_cb,
-				       priv);
-	g_ptr_array_unref (devices);
 }
 
 /**
@@ -1674,21 +1374,12 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_close"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_factory_close_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_boot"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_factory_boot_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_flash"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_factory_flash_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_calibrate"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_factory_calibrate_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_serial"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_factory_serial_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_check_leds"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_factory_check_leds_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_select_all"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_factory_select_all_cb), priv);
@@ -1717,18 +1408,6 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 
 	/* is the colorhug already plugged in? */
 	g_usb_context_enumerate (priv->usb_ctx);
-
-	/* get the firmware */
-	filename = g_build_filename (priv->local_firmware_uri,
-				     "metadata.xml",
-				     NULL);
-	priv->updates = ch_flash_md_parse_filename (filename, &error);
-	if (priv->updates == NULL) {
-		g_warning ("failed to load metadata: %s",
-			   error->message);
-		g_error_free (error);
-		goto out;
-	}
 
 	/* inhibit the display */
 	ret = cd_client_connect_sync (priv->client, NULL, &error);
@@ -1931,8 +1610,6 @@ main (int argc, char **argv)
 	status = g_application_run (G_APPLICATION (priv->application), argc, argv);
 
 	g_object_unref (priv->application);
-	if (priv->updates != NULL)
-		g_ptr_array_unref (priv->updates);
 	if (priv->device_queue != NULL)
 		g_object_unref (priv->device_queue);
 	if (priv->usb_ctx != NULL)
@@ -1948,8 +1625,6 @@ main (int argc, char **argv)
 	g_ptr_array_unref (priv->samples_ti1);
 	g_hash_table_unref (priv->results);
 	g_free (priv->local_calibration_uri);
-	g_free (priv->local_firmware_uri);
-	g_free (priv->firmware_data);
 	g_free (priv);
 	g_free (database_uri);
 	return status;

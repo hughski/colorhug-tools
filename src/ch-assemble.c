@@ -35,9 +35,6 @@ typedef struct {
 	GtkApplication	*application;
 	GtkBuilder	*builder;
 	GUsbContext	*usb_ctx;
-	gchar		*firmware_fn;
-	gsize		 firmware_len;
-	guint8		*firmware_data;
 } ChAssemblePrivate;
 
 /**
@@ -188,6 +185,88 @@ ch_assemble_firmware_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 }
 
 /**
+ * _ch_device_get_download_id:
+ * @device: the #GUsbDevice
+ *
+ * Returns the string identifier to use for the device type.
+ *
+ * Return value: string, e.g. "colorhug2"
+ *
+ * Since: x.x.x
+ **/
+static const gchar *
+_ch_device_get_download_id (GUsbDevice *device)
+{
+	const char *str = NULL;
+	switch (ch_device_get_mode (device)) {
+	case CH_DEVICE_MODE_LEGACY:
+	case CH_DEVICE_MODE_BOOTLOADER:
+	case CH_DEVICE_MODE_FIRMWARE:
+		str = "colorhug";
+		break;
+	case CH_DEVICE_MODE_BOOTLOADER2:
+	case CH_DEVICE_MODE_FIRMWARE2:
+		str = "colorhug2";
+		break;
+	case CH_DEVICE_MODE_BOOTLOADER_PLUS:
+	case CH_DEVICE_MODE_FIRMWARE_PLUS:
+		str = "colorhug-plus";
+		break;
+	default:
+		break;
+	}
+	return str;
+}
+
+/**
+ * ch_assemble_flash_firmware:
+ **/
+static void
+ch_assemble_flash_firmware (ChAssemblePrivate *priv)
+{
+	gsize len;
+	_cleanup_error_free_ GError *error = NULL;
+	_cleanup_free_ gchar *fn = NULL;
+	_cleanup_free_ guint8 *data = NULL;
+
+	/* set to false */
+	ch_device_queue_set_flash_success (priv->device_queue,
+					   priv->device, 0);
+
+	switch (ch_device_get_mode (priv->device)) {
+	case CH_DEVICE_MODE_BOOTLOADER:
+	case CH_DEVICE_MODE_BOOTLOADER2:
+	case CH_DEVICE_MODE_BOOTLOADER_ALS:
+
+		/* read firmware */
+		ch_assemble_set_color (priv, 0.25f, 0.25f, 0.25f);
+		ch_assemble_set_label (priv, _("Loading firmware..."));
+		fn = g_strdup_printf ("./firmware/%s/firmware.bin",
+				       _ch_device_get_download_id (priv->device));
+		if (!g_file_get_contents (fn, (gchar **) &data, &len, &error)) {
+			g_warning ("Failed to open firmware file %s: %s",
+				   fn, error->message);
+			return;
+		}
+
+		/* write to device */
+		ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
+		ch_assemble_set_label (priv, _("Writing firmware..."));
+		ch_device_queue_write_firmware (priv->device_queue, priv->device,
+						data, len);
+		break;
+	default:
+		break;
+	}
+
+	ch_device_queue_process_async (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       NULL,
+				       ch_assemble_firmware_cb,
+				       priv);
+}
+
+/**
  * ch_assemble_self_test_cb:
  **/
 static void
@@ -242,21 +321,7 @@ ch_assemble_self_test_cb (GObject *source,
 	ch_assemble_set_color (priv, 0.0f, 1.0f, 0.0f);
 
 	/* flash firmware */
-	switch (ch_device_get_mode (priv->device)) {
-	case CH_DEVICE_MODE_BOOTLOADER_ALS:
-		ch_assemble_set_label (priv, _("Writing firmware..."));
-		ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
-		ch_device_queue_write_firmware (priv->device_queue, priv->device,
-						priv->firmware_data, priv->firmware_len);
-		ch_device_queue_process_async (priv->device_queue,
-					       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
-					       NULL,
-					       ch_assemble_firmware_cb,
-					       priv);
-		break;
-	default:
-		break;
-	}
+	ch_assemble_flash_firmware (priv);
 }
 
 /**
@@ -342,16 +407,6 @@ ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 					    &error);
 	if (retval == 0) {
 		g_warning ("failed to load ui: %s", error->message);
-		return;
-	}
-
-	/* open firmware */
-	if (!g_file_get_contents (priv->firmware_fn,
-				  (gchar **) &priv->firmware_data,
-				  &priv->firmware_len,
-				  &error)) {
-		g_warning ("Failed to open firmware file %s: %s",
-			   priv->firmware_fn, error->message);
 		return;
 	}
 
@@ -478,7 +533,6 @@ main (int argc, char **argv)
 	priv = g_new0 (ChAssemblePrivate, 1);
 	priv->usb_ctx = g_usb_context_new (NULL);
 	priv->device_queue = ch_device_queue_new ();
-	priv->firmware_fn = g_strdup ("/home/hughsie/Code/ColorHug/ColorHugALS/firmware-releases/3.0.2/firmware.bin");
 	g_signal_connect (priv->usb_ctx, "device-added",
 			  G_CALLBACK (ch_assemble_device_added_cb), priv);
 	g_signal_connect (priv->usb_ctx, "device-removed",
@@ -508,8 +562,6 @@ main (int argc, char **argv)
 		g_object_unref (priv->usb_ctx);
 	if (priv->builder != NULL)
 		g_object_unref (priv->builder);
-	g_free (priv->firmware_data);
-	g_free (priv->firmware_fn);
 	g_free (priv);
 	return status;
 }

@@ -28,8 +28,6 @@ colorhug_assemble_CFLAGS =				\
 
 colorhug_factory_SOURCES =				\
 	ch-cleanup.h					\
-	ch-flash-md.c					\
-	ch-flash-md.h					\
 	ch-database.c					\
 	ch-database.h					\
 	ch-shipping-common.c				\
