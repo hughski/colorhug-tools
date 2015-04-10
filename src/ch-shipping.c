@@ -30,6 +30,7 @@
 #include <lcms2.h>
 #include <canberra-gtk.h>
 
+#include "ch-cleanup.h"
 #include "ch-cell-renderer-date.h"
 #include "ch-cell-renderer-postage.h"
 #include "ch-cell-renderer-uint32.h"
