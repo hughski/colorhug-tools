@@ -946,58 +946,6 @@ ch_shipping_order_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 }
 
 /**
- * ch_shipping_invite_cancel_button_cb:
- **/
-static void
-ch_shipping_invite_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	if (g_main_loop_is_running (priv->loop))
-		g_main_loop_quit (priv->loop);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_invite"));
-	gtk_widget_hide (widget);
-}
-
-/**
- * ch_shipping_queue_cancel_button_cb:
- **/
-static void
-ch_shipping_queue_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_queue"));
-	gtk_widget_hide (widget);
-}
-
-/**
- * ch_shipping_invite_button_cb:
- **/
-static void
-ch_shipping_invite_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	/* clear existing */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_invite"));
-	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), 0.0);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_invite_delay"));
-	gtk_spin_button_set_value (GTK_SPIN_BUTTON (widget), 2.0);
-
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_invite"));
-	gtk_widget_show (widget);
-}
-
-/**
- * ch_shipping_preorder_button_cb:
- **/
-static void
-ch_shipping_preorder_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	/* clear existing */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_queue_emails"));
-	gtk_entry_set_text (GTK_ENTRY (widget), "");
-
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_queue"));
-	gtk_widget_show (widget);
-}
-
-/**
  * ch_shipping_comment_button_cb:
  **/
 static void
@@ -1047,48 +995,6 @@ ch_shipping_comment_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_comment"));
 	gtk_widget_hide (widget);
-}
-
-/**
- * ch_shipping_loop_quit_cb:
- **/
-static gboolean
-ch_shipping_loop_quit_cb (gpointer user_data)
-{
-	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
-	g_main_loop_quit (priv->loop);
-	return FALSE;
-}
-
-/**
- * ch_shipping_parse_email_list:
- **/
-static GPtrArray *
-ch_shipping_parse_email_list (const gchar *value)
-{
-	gchar **split = NULL;
-	gchar *tmp = NULL;
-	GPtrArray *array;
-	guint i;
-
-	/* get the actual email addresses from the junk we just pasted in */
-	array = g_ptr_array_new_with_free_func (g_free);
-	tmp = g_strdup (value);
-	g_strdelimit  (tmp, "<>\n✆;,", ' ');
-	split = g_strsplit (tmp, " ", -1);
-	for (i = 0; split[i] != NULL; i++) {
-		if (split[i][0] == '\0')
-			continue;
-		if (g_strstr_len (split[i], -1, "@") == NULL)
-			continue;
-		if (g_strstr_len (split[i], -1, ".") == NULL)
-			continue;
-		g_ptr_array_add (array, g_strdup (split[i]));
-		g_usleep (10);
-	}
-	g_strfreev (split);
-	g_free (tmp);
-	return array;
 }
 
 /**
@@ -2223,12 +2129,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "toolbutton_comment"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_invite"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_invite_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_preorder"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_preorder_button_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_order_cancel"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_order_cancel_button_cb), priv);
@@ -2244,20 +2144,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_tracking"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_tracking_button_cb), priv);
-
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_invite_cancel"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_invite_cancel_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_invite_send"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_invite_send_button_cb), priv);
-
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_queue_cancel"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_queue_cancel_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_queue_add"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_queue_add_button_cb), priv);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_refresh"));
 	g_signal_connect (widget, "clicked",

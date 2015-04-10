@@ -110,18 +110,7 @@ guint32		 ch_database_add_order		(ChDatabase	*database,
 						 const gchar	*name,
 						 const gchar	*address,
 						 const gchar	*email,
-						 ChShippingPostage postage,
-						 GError		**error);
-GPtrArray	*ch_database_get_queue		(ChDatabase	*database,
-						 GError		**error);
-guint		 ch_database_queue_add		(ChDatabase	*database,
-						 const gchar	*email,
-						 GError		**error);
-gboolean	 ch_database_queue_promote	(ChDatabase	*database,
-						 const gchar	*email,
-						 GError		**error);
-gboolean	 ch_database_queue_remove	(ChDatabase	*database,
-						 const gchar	*email,
+						 ChShippingKind postage,
 						 GError		**error);
 gchar 		*ch_database_get_next_tracking_number (ChDatabase	*database,
 						 GError		**error);
