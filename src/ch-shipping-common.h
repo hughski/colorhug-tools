@@ -27,27 +27,27 @@
 G_BEGIN_DECLS
 
 typedef enum {
-	CH_SHIPPING_POSTAGE_UNKNOWN,
-	CH_SHIPPING_POSTAGE_UK,
-	CH_SHIPPING_POSTAGE_EUROPE,
-	CH_SHIPPING_POSTAGE_WORLD,
-	CH_SHIPPING_POSTAGE_UK_SIGNED,
-	CH_SHIPPING_POSTAGE_EUROPE_SIGNED,
-	CH_SHIPPING_POSTAGE_WORLD_SIGNED,
-	CH_SHIPPING_POSTAGE_XUK,
-	CH_SHIPPING_POSTAGE_XEUROPE,
-	CH_SHIPPING_POSTAGE_XWORLD,
-	CH_SHIPPING_POSTAGE_XUK_SIGNED,
-	CH_SHIPPING_POSTAGE_XEUROPE_SIGNED,
-	CH_SHIPPING_POSTAGE_XWORLD_SIGNED,
-	CH_SHIPPING_POSTAGE_AUK,
-	CH_SHIPPING_POSTAGE_AEUROPE,
-	CH_SHIPPING_POSTAGE_AWORLD,
-	CH_SHIPPING_POSTAGE_GUK,
-	CH_SHIPPING_POSTAGE_GEUROPE,
-	CH_SHIPPING_POSTAGE_GWORLD,
-	CH_SHIPPING_POSTAGE_LAST
-} ChShippingPostage;
+	CH_SHIPPING_KIND_UNKNOWN,
+	__UNUSED_CH_SHIPPING_KIND_CH2_UK,
+	__UNUSED_CH_SHIPPING_KIND_CH2_EUROPE,
+	__UNUSED_CH_SHIPPING_KIND_CH2_WORLD,
+	CH_SHIPPING_KIND_CH2_UK_SIGNED,
+	CH_SHIPPING_KIND_CH2_EUROPE_SIGNED,
+	CH_SHIPPING_KIND_CH2_WORLD_SIGNED,
+	CH_SHIPPING_KIND_CH1_UK,
+	CH_SHIPPING_KIND_CH1_EUROPE,
+	CH_SHIPPING_KIND_CH1_WORLD,
+	CH_SHIPPING_KIND_CH1_UK_SIGNED,
+	CH_SHIPPING_KIND_CH1_EUROPE_SIGNED,
+	CH_SHIPPING_KIND_CH1_WORLD_SIGNED,
+	CH_SHIPPING_KIND_STRAP_UK,
+	CH_SHIPPING_KIND_STRAP_EUROPE,
+	CH_SHIPPING_KIND_STRAP_WORLD,
+	CH_SHIPPING_KIND_ALS_UK,
+	CH_SHIPPING_KIND_ALS_EUROPE,
+	CH_SHIPPING_KIND_ALS_WORLD,
+	CH_SHIPPING_KIND_LAST
+} ChShippingKind;
 
 typedef enum {
 	CH_DEVICE_STATE_INIT,
@@ -65,10 +65,10 @@ typedef enum {
 	CH_ORDER_STATE_LAST
 } ChOrderState;
 
-const gchar	*ch_shipping_postage_to_string	(ChShippingPostage postage);
-const gchar	*ch_shipping_postage_to_service	(ChShippingPostage postage);
-gdouble		 ch_shipping_postage_to_price	(ChShippingPostage postage);
-guint		 ch_shipping_device_to_price	(ChShippingPostage postage);
+const gchar	*ch_shipping_kind_to_string	(ChShippingKind postage);
+const gchar	*ch_shipping_kind_to_service	(ChShippingKind postage);
+gdouble		 ch_shipping_kind_to_price	(ChShippingKind postage);
+guint		 ch_shipping_device_to_price	(ChShippingKind postage);
 gboolean	 ch_shipping_send_email		(const gchar	*sender,
 						 const gchar	*recipient,
 						 const gchar	*subject,

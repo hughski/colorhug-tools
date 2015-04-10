@@ -48,7 +48,7 @@ struct _ChDatabaseClass
 };
 
 typedef struct {
-	ChShippingPostage postage;
+	ChShippingKind postage;
 	gchar		*address;
 	gchar		*email;
 	gchar		*name;
@@ -65,6 +65,7 @@ void		 ch_database_set_uri		(ChDatabase	*database,
 						 const gchar	*uri);
 const gchar	*ch_database_state_to_string	(ChDeviceState state);
 guint32		 ch_database_add_device		(ChDatabase	*database,
+						 guint		 hw_ver,
 						 GError		**error);
 gboolean	 ch_database_device_set_order_id (ChDatabase	*database,
 						 guint32	 device_id,
@@ -97,12 +98,14 @@ gchar		*ch_database_order_get_comment	(ChDatabase	*database,
 						 GError		**error);
 guint32		 ch_database_device_find_oldest	(ChDatabase	*database,
 						 ChDeviceState state,
+						 guint		 hw_ver,
 						 GError		**error);
 GArray		*ch_database_order_get_device_ids (ChDatabase	*database,
 						 guint32	 order_id,
 						 GError		**error);
 guint		 ch_database_device_get_number	(ChDatabase	*database,
-						 ChDeviceState state,
+						 ChDeviceState	 state,
+						 guint		 hw_ver,
 						 GError		**error);
 GPtrArray	*ch_database_get_all_orders	(ChDatabase	*database,
 						 GError		**error);

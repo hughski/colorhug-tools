@@ -62,12 +62,12 @@ ch_cell_renderer_postage_set_property (GObject *object, guint param_id,
 	switch (param_id) {
 	case PROP_VALUE:
 		cru->value = g_value_get_uint (value);
-		cru->markup = ch_shipping_postage_to_string (cru->value);
+		cru->markup = ch_shipping_kind_to_string (cru->value);
 
 		/* if the postage is zero, we hide the markup */
 		g_object_set (cru,
 			      "markup", cru->markup,
-			      "visible", (cru->value != CH_SHIPPING_POSTAGE_LAST),
+			      "visible", (cru->value != CH_SHIPPING_KIND_LAST),
 			      NULL);
 		break;
 	default:

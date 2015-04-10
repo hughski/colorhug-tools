@@ -108,6 +108,7 @@ ch_database_load (ChDatabase *database, GError **error)
 		sqlite3_free (error_msg);
 		statement = "CREATE TABLE devices ("
 			    "device_id INTEGER PRIMARY KEY AUTOINCREMENT,"
+			    "hw_ver INTEGER DEFAULT 0,"
 			    "calibrated_date INTEGER,"
 			    "state INTEGER,"
 			    "order_id INTEGER);";
@@ -123,9 +124,16 @@ ch_database_load (ChDatabase *database, GError **error)
 			    "postage INTEGER,"
 			    "sent_date INTEGER);";
 		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
-		statement = "CREATE TABLE queue ("
-			    "email STRING,"
-			    "added INTEGER);";
+	}
+
+	/* check devices has hw_ver */
+	rc = sqlite3_exec (priv->db,
+			   "SELECT hw_ver FROM devices LIMIT 1",
+			   NULL, NULL, &error_msg);
+	if (rc != SQLITE_OK) {
+		g_debug ("altering table to repair: %s", error_msg);
+		sqlite3_free (error_msg);
+		statement = "ALTER TABLE devices ADD COLUMN hw_ver INTEGER DEFAULT 0;";
 		sqlite3_exec (priv->db, statement, NULL, NULL, NULL);
 	}
 
@@ -145,7 +153,7 @@ out:
  * Return value: The new device serial number or G_MAXUINT32 for error
  **/
 guint32
-ch_database_add_device (ChDatabase *database, GError **error)
+ch_database_add_device (ChDatabase *database, guint hw_ver, GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;
 	gboolean ret;
@@ -160,9 +168,10 @@ ch_database_add_device (ChDatabase *database, GError **error)
 		goto out;
 
 	/* add newest */
-	statement = g_strdup_printf ("INSERT INTO devices (calibrated_date, order_id, state) "
-				     "VALUES ('%" G_GINT64_FORMAT "', '', %i);",
+	statement = g_strdup_printf ("INSERT INTO devices (calibrated_date, order_id, hw_ver, state) "
+				     "VALUES ('%" G_GINT64_FORMAT "', '', %i, %i);",
 				     g_get_real_time (),
+				     hw_ver,
 				     CH_DEVICE_STATE_INIT);
 	rc = sqlite3_exec (priv->db, statement, NULL, NULL, &error_msg);
 	if (rc != SQLITE_OK) {
@@ -554,6 +563,7 @@ ch_database_device_get_number_cb (void *data, gint argc, gchar **argv, gchar **c
 guint
 ch_database_device_get_number (ChDatabase *database,
 			       ChDeviceState state,
+			       guint hw_ver,
 			       GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;
@@ -572,7 +582,7 @@ ch_database_device_get_number (ChDatabase *database,
 
 	/* find */
 	statement = g_strdup_printf ("SELECT device_id "
-				     "FROM devices WHERE state = '%i';", state);
+				     "FROM devices WHERE state = '%i' and hw_ver = '%i';", state, hw_ver);
 	rc = sqlite3_exec (priv->db,
 			   statement,
 			   ch_database_device_get_number_cb,
@@ -614,6 +624,7 @@ ch_database_device_find_oldest_cb (void *data, gint argc, gchar **argv, gchar **
 guint32
 ch_database_device_find_oldest (ChDatabase *database,
 				ChDeviceState state,
+				guint hw_ver,
 				GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;
@@ -630,8 +641,8 @@ ch_database_device_find_oldest (ChDatabase *database,
 
 	/* find */
 	statement = g_strdup_printf ("SELECT device_id "
-				     "FROM devices WHERE state = '%i' "
-				     "ORDER BY device_id ASC LIMIT 1", state);
+				     "FROM devices WHERE state = '%i' AND hw_ver = '%i' "
+				     "ORDER BY device_id ASC LIMIT 1", state, hw_ver);
 	rc = sqlite3_exec (priv->db,
 			   statement,
 			   ch_database_device_find_oldest_cb,
@@ -915,7 +926,7 @@ ch_database_add_order (ChDatabase *database,
 		       const gchar *name,
 		       const gchar *address,
 		       const gchar *email,
-		       ChShippingPostage postage,
+		       ChShippingKind postage,
 		       GError **error)
 {
 	ChDatabasePrivate *priv = database->priv;

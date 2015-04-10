@@ -240,47 +240,47 @@ out:
 }
 
 /**
- * ch_shipping_postage_to_price:
+ * ch_shipping_kind_to_price:
  **/
 gdouble
-ch_shipping_postage_to_price (ChShippingPostage postage)
+ch_shipping_kind_to_price (ChShippingKind postage)
 {
 	switch (postage) {
-	case CH_SHIPPING_POSTAGE_UNKNOWN:
+	case CH_SHIPPING_KIND_UNKNOWN:
 		return 0;
 		break;
-	case CH_SHIPPING_POSTAGE_UK:
-	case CH_SHIPPING_POSTAGE_XUK:
+	case CH_SHIPPING_KIND_CH1_UK:
 		return 2.2f;
 		break;
-	case CH_SHIPPING_POSTAGE_EUROPE:
-	case CH_SHIPPING_POSTAGE_XEUROPE:
+	case CH_SHIPPING_KIND_CH1_EUROPE:
 		return 3.5f;
 		break;
-	case CH_SHIPPING_POSTAGE_WORLD:
-	case CH_SHIPPING_POSTAGE_XWORLD:
+	case CH_SHIPPING_KIND_CH1_WORLD:
 		return 4.7f;
 		break;
-	case CH_SHIPPING_POSTAGE_UK_SIGNED:
-	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
+	case CH_SHIPPING_KIND_CH1_UK_SIGNED:
 		return 4.6f;
 		break;
-	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
-	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH1_EUROPE_SIGNED:
 		return 8.8f;
 		break;
-	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
-	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
+	case CH_SHIPPING_KIND_CH1_WORLD_SIGNED:
 		return 9.9f;
 		break;
-	case CH_SHIPPING_POSTAGE_AUK:
-	case CH_SHIPPING_POSTAGE_AEUROPE:
-	case CH_SHIPPING_POSTAGE_AWORLD:
+	case CH_SHIPPING_KIND_STRAP_UK:
+	case CH_SHIPPING_KIND_STRAP_EUROPE:
+	case CH_SHIPPING_KIND_STRAP_WORLD:
 		return 3.5f;
 		break;
-	case CH_SHIPPING_POSTAGE_GUK:
-	case CH_SHIPPING_POSTAGE_GEUROPE:
-	case CH_SHIPPING_POSTAGE_GWORLD:
+	case CH_SHIPPING_KIND_ALS_UK:
+	case CH_SHIPPING_KIND_ALS_EUROPE:
+	case CH_SHIPPING_KIND_ALS_WORLD:
+//	case CH_SHIPPING_KIND_CH2_UK:
+//	case CH_SHIPPING_KIND_CH2_EUROPE:
+//	case CH_SHIPPING_KIND_CH2_WORLD:
+	case CH_SHIPPING_KIND_CH2_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH2_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH2_WORLD_SIGNED:
 		return 0.0f;
 		break;
 	default:
@@ -291,55 +291,55 @@ ch_shipping_postage_to_price (ChShippingPostage postage)
 }
 
 /**
- * ch_shipping_postage_to_service:
+ * ch_shipping_kind_to_service:
  **/
 const gchar *
-ch_shipping_postage_to_service (ChShippingPostage postage)
+ch_shipping_kind_to_service (ChShippingKind postage)
 {
 	switch (postage) {
-	case CH_SHIPPING_POSTAGE_UNKNOWN:
+	case CH_SHIPPING_KIND_UNKNOWN:
 		return "xxx";
 		break;
-	case CH_SHIPPING_POSTAGE_UK:
-	case CH_SHIPPING_POSTAGE_XUK:
+//	case CH_SHIPPING_KIND_CH2_UK:
+	case CH_SHIPPING_KIND_CH1_UK:
 		return "P 145g";
 		break;
-	case CH_SHIPPING_POSTAGE_EUROPE:
-	case CH_SHIPPING_POSTAGE_XEUROPE:
+//	case CH_SHIPPING_KIND_CH2_EUROPE:
+	case CH_SHIPPING_KIND_CH1_EUROPE:
 		return "A sm pkt 145g";
 		break;
-	case CH_SHIPPING_POSTAGE_WORLD:
-	case CH_SHIPPING_POSTAGE_XWORLD:
+//	case CH_SHIPPING_KIND_CH2_WORLD:
+	case CH_SHIPPING_KIND_CH1_WORLD:
 		return "A sm pkt 145g";
 		break;
-	case CH_SHIPPING_POSTAGE_UK_SIGNED:
-	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
+	case CH_SHIPPING_KIND_CH2_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH1_UK_SIGNED:
 		return "1RSF 145g";
 		break;
-	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
-	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH2_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH1_EUROPE_SIGNED:
 		return "AISF 145g";
 		break;
-	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
-	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
+	case CH_SHIPPING_KIND_CH2_WORLD_SIGNED:
+	case CH_SHIPPING_KIND_CH1_WORLD_SIGNED:
 		return "AISF 145g";
 		break;
-	case CH_SHIPPING_POSTAGE_AUK:
+	case CH_SHIPPING_KIND_STRAP_UK:
 		return "A sm pkt 65g";
 		break;
-	case CH_SHIPPING_POSTAGE_AEUROPE:
+	case CH_SHIPPING_KIND_STRAP_EUROPE:
 		return "A sm pkt 65g";
 		break;
-	case CH_SHIPPING_POSTAGE_AWORLD:
+	case CH_SHIPPING_KIND_STRAP_WORLD:
 		return "A sm pkt 65g";
 		break;
-	case CH_SHIPPING_POSTAGE_GUK:
+	case CH_SHIPPING_KIND_ALS_UK:
 		return "A sm pkt 20g";
 		break;
-	case CH_SHIPPING_POSTAGE_GEUROPE:
+	case CH_SHIPPING_KIND_ALS_EUROPE:
 		return "A sm pkt 20g";
 		break;
-	case CH_SHIPPING_POSTAGE_GWORLD:
+	case CH_SHIPPING_KIND_ALS_WORLD:
 		return "A sm pkt 20g";
 		break;
 	default:
@@ -353,36 +353,36 @@ ch_shipping_postage_to_service (ChShippingPostage postage)
  * ch_shipping_device_to_price:
  **/
 guint
-ch_shipping_device_to_price (ChShippingPostage postage)
+ch_shipping_device_to_price (ChShippingKind postage)
 {
 	switch (postage) {
-	case CH_SHIPPING_POSTAGE_UNKNOWN:
+	case CH_SHIPPING_KIND_UNKNOWN:
 		return 0;
 		break;
-	case CH_SHIPPING_POSTAGE_UK:
-	case CH_SHIPPING_POSTAGE_EUROPE:
-	case CH_SHIPPING_POSTAGE_WORLD:
-	case CH_SHIPPING_POSTAGE_UK_SIGNED:
-	case CH_SHIPPING_POSTAGE_EUROPE_SIGNED:
-	case CH_SHIPPING_POSTAGE_WORLD_SIGNED:
-		return 48;
-		break;
-	case CH_SHIPPING_POSTAGE_XUK:
-	case CH_SHIPPING_POSTAGE_XEUROPE:
-	case CH_SHIPPING_POSTAGE_XWORLD:
-	case CH_SHIPPING_POSTAGE_XUK_SIGNED:
-	case CH_SHIPPING_POSTAGE_XEUROPE_SIGNED:
-	case CH_SHIPPING_POSTAGE_XWORLD_SIGNED:
+	case CH_SHIPPING_KIND_CH1_UK:
+	case CH_SHIPPING_KIND_CH1_EUROPE:
+	case CH_SHIPPING_KIND_CH1_WORLD:
+	case CH_SHIPPING_KIND_CH1_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH1_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH1_WORLD_SIGNED:
 		return 60;
 		break;
-	case CH_SHIPPING_POSTAGE_AUK:
-	case CH_SHIPPING_POSTAGE_AEUROPE:
-	case CH_SHIPPING_POSTAGE_AWORLD:
+//	case CH_SHIPPING_KIND_CH2_UK:
+//	case CH_SHIPPING_KIND_CH2_EUROPE:
+//	case CH_SHIPPING_KIND_CH2_WORLD:
+	case CH_SHIPPING_KIND_CH2_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH2_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH2_WORLD_SIGNED:
+		return 75;
+		break;
+	case CH_SHIPPING_KIND_STRAP_UK:
+	case CH_SHIPPING_KIND_STRAP_EUROPE:
+	case CH_SHIPPING_KIND_STRAP_WORLD:
 		return 0;
 		break;
-	case CH_SHIPPING_POSTAGE_GUK:
-	case CH_SHIPPING_POSTAGE_GEUROPE:
-	case CH_SHIPPING_POSTAGE_GWORLD:
+	case CH_SHIPPING_KIND_ALS_UK:
+	case CH_SHIPPING_KIND_ALS_EUROPE:
+	case CH_SHIPPING_KIND_ALS_WORLD:
 		return 20;
 		break;
 	default:
@@ -393,49 +393,49 @@ ch_shipping_device_to_price (ChShippingPostage postage)
 }
 
 /**
- * ch_shipping_postage_to_string:
+ * ch_shipping_kind_to_string:
  **/
 const gchar *
-ch_shipping_postage_to_string (ChShippingPostage postage)
+ch_shipping_kind_to_string (ChShippingKind postage)
 {
-	if (postage == CH_SHIPPING_POSTAGE_UNKNOWN)
+	if (postage == CH_SHIPPING_KIND_UNKNOWN)
 		return "n/a";
-	if (postage == CH_SHIPPING_POSTAGE_UK)
-		return "UK";
-	if (postage == CH_SHIPPING_POSTAGE_EUROPE)
-		return "EUR";
-	if (postage == CH_SHIPPING_POSTAGE_WORLD)
-		return "WOR";
-	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED)
-		return "UK-S";
-	if (postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED)
-		return "EUR-S";
-	if (postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED)
-		return "WOR-S";
-	if (postage == CH_SHIPPING_POSTAGE_XUK)
-		return "XUK";
-	if (postage == CH_SHIPPING_POSTAGE_XEUROPE)
-		return "XEUR";
-	if (postage == CH_SHIPPING_POSTAGE_XWORLD)
-		return "XWOR";
-	if (postage == CH_SHIPPING_POSTAGE_XUK_SIGNED)
-		return "XUK-S";
-	if (postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED)
-		return "XEUR-S";
-	if (postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED)
-		return "XWOR-S";
-	if (postage == CH_SHIPPING_POSTAGE_AUK)
-		return "AUK";
-	if (postage == CH_SHIPPING_POSTAGE_AEUROPE)
-		return "AEUR";
-	if (postage == CH_SHIPPING_POSTAGE_AWORLD)
-		return "AWOR";
-	if (postage == CH_SHIPPING_POSTAGE_GUK)
-		return "GUK";
-	if (postage == CH_SHIPPING_POSTAGE_GEUROPE)
-		return "GEUR";
-	if (postage == CH_SHIPPING_POSTAGE_GWORLD)
-		return "GWOR";
+//	if (postage == CH_SHIPPING_KIND_CH2_UK)
+//		return "CH2-UK";
+//	if (postage == CH_SHIPPING_KIND_CH2_EUROPE)
+//		return "CH2-EUR";
+//	if (postage == CH_SHIPPING_KIND_CH2_WORLD)
+//		return "CH2-WOR";
+	if (postage == CH_SHIPPING_KIND_CH2_UK_SIGNED)
+		return "CH2-UK-S";
+	if (postage == CH_SHIPPING_KIND_CH2_EUROPE_SIGNED)
+		return "CH2-EUR-S";
+	if (postage == CH_SHIPPING_KIND_CH2_WORLD_SIGNED)
+		return "CH2-WOR-S";
+	if (postage == CH_SHIPPING_KIND_CH1_UK)
+		return "CH1-UK";
+	if (postage == CH_SHIPPING_KIND_CH1_EUROPE)
+		return "CH1-EUR";
+	if (postage == CH_SHIPPING_KIND_CH1_WORLD)
+		return "CH1-WOR";
+	if (postage == CH_SHIPPING_KIND_CH1_UK_SIGNED)
+		return "CH1-UK-S";
+	if (postage == CH_SHIPPING_KIND_CH1_EUROPE_SIGNED)
+		return "CH1-EUR-S";
+	if (postage == CH_SHIPPING_KIND_CH1_WORLD_SIGNED)
+		return "CH1-WOR-S";
+	if (postage == CH_SHIPPING_KIND_STRAP_UK)
+		return "ACC-UK";
+	if (postage == CH_SHIPPING_KIND_STRAP_EUROPE)
+		return "ACC-EUR";
+	if (postage == CH_SHIPPING_KIND_STRAP_WORLD)
+		return "ACC-WOR";
+	if (postage == CH_SHIPPING_KIND_ALS_UK)
+		return "ALS-UK";
+	if (postage == CH_SHIPPING_KIND_ALS_EUROPE)
+		return "ALS-EUR";
+	if (postage == CH_SHIPPING_KIND_ALS_WORLD)
+		return "ALS-WOR";
 	return NULL;
 }
 

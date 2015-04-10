@@ -139,40 +139,26 @@ ch_shipping_find_by_id (GtkTreeModel *model,
 static void
 ch_shipping_refresh_status (ChFactoryPrivate *priv)
 {
-	gchar *label = NULL;
-	GError *error = NULL;
-	GPtrArray *queue = NULL;
 	GtkWidget *widget;
-	guint devices_left;
+	guint ch1s;
+	guint ch2s;
+	_cleanup_error_free_ GError *error = NULL;
+	_cleanup_free_ gchar *label = NULL;
 
 	/* update status */
-	devices_left = ch_database_device_get_number (priv->database, CH_DEVICE_STATE_CALIBRATED, &error);
-	if (devices_left == G_MAXUINT) {
+	ch1s = ch_database_device_get_number (priv->database, CH_DEVICE_STATE_CALIBRATED, 1, &error);
+	if (ch1s == G_MAXUINT) {
 		ch_shipping_error_dialog (priv, "Failed to get number of devices", error->message);
-		g_error_free (error);
-		goto out;
+		return;
 	}
-
-	/* count preorder list size */
-	queue = ch_database_get_queue (priv->database, &error);
-	if (queue == NULL) {
-		ch_shipping_error_dialog (priv, "Failed to get preorder queue", error->message);
-		g_error_free (error);
-		goto out;
+	ch2s = ch_database_device_get_number (priv->database, CH_DEVICE_STATE_CALIBRATED, 2, &error);
+	if (ch2s == G_MAXUINT) {
+		ch_shipping_error_dialog (priv, "Failed to get number of devices", error->message);
+		return;
 	}
-	if (queue->len > 0) {
-		label = g_strdup_printf ("%i devices remaining to be sold, %i preorders",
-					 devices_left, queue->len);
-	} else {
-		label = g_strdup_printf ("%i devices remaining to be sold",
-					 devices_left);
-	}
+	label = g_strdup_printf ("%i ColorHug and %i ColorHug2 remaining to be sold", ch1s, ch2s);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "label_status"));
 	gtk_label_set_text (GTK_LABEL (widget), label);
-out:
-	g_free (label);
-	if (queue != NULL)
-		g_ptr_array_unref (queue);
 }
 
 /**
@@ -391,7 +377,7 @@ out:
 static void
 ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
-	ChShippingPostage postage;
+	ChShippingKind postage;
 	gboolean ret;
 	gchar *address = NULL;
 	GError *error = NULL;
@@ -402,22 +388,23 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 			    COLUMN_ADDRESS, &address,
 			    -1);
 
-	if (postage != CH_SHIPPING_POSTAGE_WORLD &&
-	    postage != CH_SHIPPING_POSTAGE_WORLD_SIGNED &&
-	    postage != CH_SHIPPING_POSTAGE_XWORLD &&
-	    postage != CH_SHIPPING_POSTAGE_XWORLD_SIGNED &&
-	    postage != CH_SHIPPING_POSTAGE_AWORLD &&
-	    postage != CH_SHIPPING_POSTAGE_GWORLD &&
+	if (postage != CH_SHIPPING_KIND_CH2_WORLD_SIGNED &&
+//	    postage != CH_SHIPPING_KIND_CH2_WORLD &&
+	    postage != CH_SHIPPING_KIND_CH1_WORLD &&
+	    postage != CH_SHIPPING_KIND_CH1_WORLD_SIGNED &&
+	    postage != CH_SHIPPING_KIND_STRAP_WORLD &&
+	    postage != CH_SHIPPING_KIND_ALS_WORLD &&
 	    g_strstr_len (address, -1, "Russia") == NULL &&
 	    g_strstr_len (address, -1, "RUSSIA") == NULL) {
 		goto out;
 	}
 
 	str = ch_shipping_string_load (CH_DATA "/cn22.tex", NULL);
-	if (postage == CH_SHIPPING_POSTAGE_AWORLD) {
+	if (postage == CH_SHIPPING_KIND_STRAP_WORLD) {
 		ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/cn22-strap.png");
 	} else {
-		if (ch_shipping_device_to_price (postage) == 60) {
+		if (ch_shipping_device_to_price (postage) == 60 ||
+		    ch_shipping_device_to_price (postage) == 75) {
 			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping60.png");
 		} else if (ch_shipping_device_to_price (postage) == 20) {
 			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping20.png");
@@ -446,8 +433,10 @@ out:
 static void
 ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
-	ChShippingPostage postage;
+	ChShippingKind postage;
 	gboolean ret;
+	const gchar *live_media = NULL;
+	const gchar *device_name = NULL;
 	gchar *address = NULL;
 	gchar *device_ids = NULL;
 	gchar **address_split = NULL;
@@ -476,16 +465,29 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	address = ch_shipping_strreplace (address, "#", "\\#");
 
 	address_split = g_strsplit (address, "|", -1);
-	postage_price = ch_shipping_postage_to_price (postage);
+	postage_price = ch_shipping_kind_to_price (postage);
 	device_price = ch_shipping_device_to_price (postage);
 
-	if (postage == CH_SHIPPING_POSTAGE_AUK ||
-	    postage == CH_SHIPPING_POSTAGE_AEUROPE ||
-	    postage == CH_SHIPPING_POSTAGE_AWORLD) {
+	switch (postage) {
+	case CH_SHIPPING_KIND_CH2_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH2_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH2_WORLD_SIGNED:
+		live_media = "LiveUSB";
+		device_name = "ColorHug2";
+		break;
+	default:
+		live_media = "LiveCD";
+		device_name = "ColorHug";
+		break;
+	}
+
+	if (postage == CH_SHIPPING_KIND_STRAP_UK ||
+	    postage == CH_SHIPPING_KIND_STRAP_EUROPE ||
+	    postage == CH_SHIPPING_KIND_STRAP_WORLD) {
 		str = ch_shipping_string_load (CH_DATA "/invoice-straps.tex", NULL);
-	} else if (postage == CH_SHIPPING_POSTAGE_GUK ||
-		   postage == CH_SHIPPING_POSTAGE_GEUROPE ||
-		   postage == CH_SHIPPING_POSTAGE_GWORLD) {
+	} else if (postage == CH_SHIPPING_KIND_ALS_UK ||
+		   postage == CH_SHIPPING_KIND_ALS_EUROPE ||
+		   postage == CH_SHIPPING_KIND_ALS_WORLD) {
 		str = ch_shipping_string_load (CH_DATA "/invoice-als.tex", NULL);
 	} else {
 		str = ch_shipping_string_load (CH_DATA "/invoice.tex", NULL);
@@ -501,7 +503,9 @@ ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeI
 	ch_shipping_string_replace (str, "$DEVICE_PRICE$", g_strdup_printf ("%i.00", device_price));
 	ch_shipping_string_replace (str, "$POSTAGE_PRICE$", g_strdup_printf ("%.2f", postage_price));
 	ch_shipping_string_replace (str, "$TOTAL_PRICE$", g_strdup_printf ("%.2f", device_price + postage_price));
-	ch_shipping_string_replace (str, "$POSTAGE_TYPE$", ch_shipping_postage_to_string (postage));
+	ch_shipping_string_replace (str, "$POSTAGE_TYPE$", ch_shipping_kind_to_string (postage));
+	ch_shipping_string_replace (str, "$LIVE_MEDIA$", live_media);
+	ch_shipping_string_replace (str, "$DEVICE_NAME$", device_name);
 
 	/* print */
 	ret = ch_shipping_print_latex_doc (str->str, NULL, &error);
@@ -617,7 +621,7 @@ ch_shipping_mark_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 static void
 ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *model, GtkTreeIter *iter, guint cnt)
 {
-	ChShippingPostage postage;
+	ChShippingKind postage;
 	gchar *address = NULL;
 	gchar **address_split = NULL;
 	gchar *device_ids = NULL;
@@ -652,7 +656,7 @@ ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *
 		i--;
 
 	tmp = g_strdup_printf ("$SERVICE%02i$", cnt);
-	ch_shipping_string_replace (str, tmp, ch_shipping_postage_to_service (postage));
+	ch_shipping_string_replace (str, tmp, ch_shipping_kind_to_service (postage));
 	g_free (tmp);
 	tmp = g_strdup_printf ("$POSTCODE%02i$", cnt);
 	ch_shipping_string_replace (str, tmp, g_strdup_printf ("%s, %s", address_split[i-2], address_split[i-1]));
@@ -763,7 +767,7 @@ out:
 static void
 ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
-	ChShippingPostage postage;
+	ChShippingKind postage;
 	gboolean ret;
 	gchar *address = NULL;
 	gchar *comment = NULL;
@@ -825,7 +829,7 @@ ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIte
 	ch_shipping_string_replace (str, "$ADDRESS5$", address_split[4]);
 	ch_shipping_string_replace (str, "$ORDER$", g_strdup_printf ("%04i", order_id));
 	ch_shipping_string_replace (str, "$DEVICES$", device_ids);
-	ch_shipping_string_replace (str, "$SHIPPING$", ch_shipping_postage_to_string (postage));
+	ch_shipping_string_replace (str, "$SHIPPING$", ch_shipping_kind_to_string (postage));
 
 	ret = ch_shipping_print_latex_doc (str->str, "LP2844", &error);
 	if (!ret) {
@@ -1008,264 +1012,58 @@ ch_shipping_refresh_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 }
 
 /**
- * ch_shipping_queue_add_button_cb:
- **/
-static void
-ch_shipping_queue_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	const gchar *recipient;
-	const guint delay_ms = 1000;
-	gboolean promote;
-	gboolean ret;
-	gchar *sender = NULL;
-	GError *error = NULL;
-	GPtrArray *array;
-	GString *str = NULL;
-	guint i;
-	guint queue_id;
-
-	/* get the actual email addresses from the junk we just pasted in */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_queue_emails"));
-	array = ch_shipping_parse_email_list (gtk_entry_get_text (GTK_ENTRY (widget)));
-
-	/* create the email */
-	str = g_string_new ("");
-
-	g_string_append (str, "Just a quick note to say we've acknowledged your interest for a ColorHug.\n");
-	g_string_append (str, "It shouldn't be long until we email again saying that your device is built, tested and ready to send.\n\n");
-	g_string_append (str, "Thanks again for your patience and support.\n\n");
-	g_string_append (str, "Many thanks,\n\n");
-	g_string_append (str, "Ania");
-
-	/* get promotion status */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "checkbutton_queue_promote"));
-	promote = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget));
-
-	/* add each email */
-	sender = g_settings_get_string (priv->settings, "invoice-sender");
-	for (i = 0; i < array->len; i++) {
-		recipient = g_ptr_array_index (array, i);
-		g_debug ("recipient=%s", recipient);
-		queue_id = ch_database_queue_add (priv->database,
-					          recipient,
-					          &error);
-		if (queue_id == G_MAXUINT) {
-			ch_shipping_error_dialog (priv, "Failed to add email", error->message);
-			g_clear_error (&error);
-			continue;
-		}
-
-		/* promote? */
-		if (promote) {
-			ret = ch_database_queue_promote (priv->database,
-							 recipient,
-							 &error);
-			if (!ret) {
-				ch_shipping_error_dialog (priv, "Failed to promote email", error->message);
-				g_clear_error (&error);
-				continue;
-			}
-		}
-
-		/* send email */
-		ret = ch_shipping_send_email (sender,
-					      recipient,
-					      "ColorHug order",
-					      str->str,
-					      g_settings_get_string (priv->settings, "invoice-auth"),
-					      &error);
-		if (!ret) {
-			ch_shipping_error_dialog (priv, "Failed to send email", error->message);
-			g_clear_error (&error);
-			continue;
-		}
-
-		/* wait the required delay, unless it's the last item */
-		if (i + 1 < array->len) {
-			g_timeout_add (delay_ms + g_random_int_range (0, delay_ms),
-				       ch_shipping_loop_quit_cb, priv);
-			g_main_loop_run (priv->loop);
-		}
-	}
-
-	/* refresh status */
-	ch_shipping_refresh_status (priv);
-
-	/* clear text box and close window */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_queue_emails"));
-	gtk_entry_set_text (GTK_ENTRY (widget), "");
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_queue"));
-	gtk_widget_hide (widget);
-//out:
-	g_free (sender);
-	g_ptr_array_unref (array);
-	if (str != NULL)
-		g_string_free (str, TRUE);
-}
-
-/**
- * ch_shipping_invite_send_button_cb:
- **/
-static void
-ch_shipping_invite_send_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	const gchar *recipient;
-	gboolean ret;
-	gchar *sender = NULL;
-	GError *error = NULL;
-	GPtrArray *array;
-	GString *str = NULL;
-	guint delay_ms;
-	guint invite_number;
-	guint i;
-
-	/* get email delay */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_invite_delay"));
-	delay_ms = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget)) * 1000;
-
-	/* get number of people to email */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_invite_number"));
-	invite_number = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
-
-	/* get the actual email addresses from the junk we just pasted in */
-	array = ch_database_get_queue (priv->database, &error);
-	if (array == NULL) {
-		ch_shipping_error_dialog (priv, "Failed to get preorder queue", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* create the email */
-	str = g_string_new ("");
-	g_string_append (str, "I am pleased to announce that the fifth batch of ColorHugs are now built, ");
-	g_string_append (str, "tested and ready to ship.\n\n");
-	g_string_append (str, "Please read the details on the link *carefully* before you make the purchase.");
-	g_string_append (str, "http://www.hughski.com/buy.html\n\n");
-	g_string_append (str, "Thanks again for your support for this exciting project.\n\n");
-	g_string_append (str, "Many thanks,\n\n");
-	g_string_append (str, "Ania Hughes");
-
-	/* send each email */
-	sender = g_settings_get_string (priv->settings, "invoice-sender");
-	for (i = 0; i < array->len && i < invite_number; i++) {
-		recipient = g_ptr_array_index (array, i);
-		g_debug ("recipient=%s", recipient);
-
-		/* remove from db */
-		ret = ch_database_queue_remove (priv->database,
-						recipient,
-						&error);
-		if (!ret) {
-			ch_shipping_error_dialog (priv, "Failed to remove email", error->message);
-			g_clear_error (&error);
-			continue;
-		}
-
-		ret = ch_shipping_send_email (sender,
-					      recipient,
-					      "Your ColorHug is now in stock!",
-					      str->str,
-					      g_settings_get_string (priv->settings, "invoice-auth"),
-					      &error);
-		if (!ret) {
-			ch_shipping_error_dialog (priv, "Failed to send email", error->message);
-			g_error_free (error);
-			goto out;
-		}
-
-		/* wait the required delay */
-		g_timeout_add (delay_ms + g_random_int_range (0, delay_ms),
-			       ch_shipping_loop_quit_cb, priv);
-		g_main_loop_run (priv->loop);
-
-		/* update progress */
-		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_invite"));
-		gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), (gdouble) i / (gdouble) array->len);
-	}
-
-	/* refresh status */
-	ch_shipping_refresh_status (priv);
-
-	/* play sound */
-	ca_context_play (ca_gtk_context_get (), 0,
-			 CA_PROP_EVENT_ID, "alarm-clock-elapsed",
-			 CA_PROP_APPLICATION_NAME, _("ColorHug Factory"),
-			 CA_PROP_EVENT_DESCRIPTION, _("Email sending completed"), NULL);
-
-	/* clear text box and close window */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "dialog_invite"));
-	gtk_widget_hide (widget);
-out:
-	if (str != NULL)
-		g_string_free (str, TRUE);
-	if (array != NULL)
-		g_ptr_array_unref (array);
-	g_ptr_array_unref (array);
-	g_free (sender);
-}
-
-/**
  * ch_shipping_order_get_radio_postage:
  **/
-static ChShippingPostage
+static ChShippingKind
 ch_shipping_order_get_radio_postage (ChFactoryPrivate *priv)
 {
 	GtkWidget *widget;
-	ChShippingPostage postage = CH_SHIPPING_POSTAGE_LAST;
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping1"));
-	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_UK;
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping2"));
-	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_EUROPE;
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping3"));
-	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_WORLD;
+	ChShippingKind postage = CH_SHIPPING_KIND_LAST;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping4"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_UK_SIGNED;
+		postage = CH_SHIPPING_KIND_CH2_UK_SIGNED;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping5"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_EUROPE_SIGNED;
+		postage = CH_SHIPPING_KIND_CH2_EUROPE_SIGNED;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping6"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_WORLD_SIGNED;
+		postage = CH_SHIPPING_KIND_CH2_WORLD_SIGNED;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping7"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_XUK;
+		postage = CH_SHIPPING_KIND_CH1_UK;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping8"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_XEUROPE;
+		postage = CH_SHIPPING_KIND_CH1_EUROPE;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping9"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_XWORLD;
+		postage = CH_SHIPPING_KIND_CH1_WORLD;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping10"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_XUK_SIGNED;
+		postage = CH_SHIPPING_KIND_CH1_UK_SIGNED;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping11"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_XEUROPE_SIGNED;
+		postage = CH_SHIPPING_KIND_CH1_EUROPE_SIGNED;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping12"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_XWORLD_SIGNED;
+		postage = CH_SHIPPING_KIND_CH1_WORLD_SIGNED;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping13"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_AUK;
+		postage = CH_SHIPPING_KIND_STRAP_UK;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping14"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_AEUROPE;
+		postage = CH_SHIPPING_KIND_STRAP_EUROPE;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping15"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_AWORLD;
+		postage = CH_SHIPPING_KIND_STRAP_WORLD;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping16"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_GUK;
+		postage = CH_SHIPPING_KIND_ALS_UK;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping17"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_GEUROPE;
+		postage = CH_SHIPPING_KIND_ALS_EUROPE;
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping18"));
 	if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget)))
-		postage = CH_SHIPPING_POSTAGE_GWORLD;
+		postage = CH_SHIPPING_KIND_ALS_WORLD;
 	return postage;
 }
 
@@ -1275,7 +1073,7 @@ ch_shipping_order_get_radio_postage (ChFactoryPrivate *priv)
 static void
 ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
-	ChShippingPostage postage = CH_SHIPPING_POSTAGE_LAST;
+	ChShippingKind postage = CH_SHIPPING_KIND_LAST;
 	const gchar *email = NULL;
 	const gchar *name = NULL;
 	const gchar *sending_day = NULL;
@@ -1287,6 +1085,7 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GString *addr = g_string_new ("");
 	GString *str = NULL;
 	guint32 device_id;
+	guint32 hw_ver;
 	guint32 order_id;
 	guint i;
 	guint number_of_devices = 0;
@@ -1320,15 +1119,33 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 
 	/* get postage */
 	postage = ch_shipping_order_get_radio_postage (priv);
+	switch (postage) {
+	case CH_SHIPPING_KIND_CH2_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH2_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH2_WORLD_SIGNED:
+		hw_ver = 2;
+		break;
+	case CH_SHIPPING_KIND_CH1_UK:
+	case CH_SHIPPING_KIND_CH1_EUROPE:
+	case CH_SHIPPING_KIND_CH1_WORLD:
+	case CH_SHIPPING_KIND_CH1_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH1_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH1_WORLD_SIGNED:
+		hw_ver = 1;
+		break;
+	default:
+		hw_ver = 0;
+		break;
+	}
 
 	/* get number of devices */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "spinbutton_order_devices"));
-	if (postage != CH_SHIPPING_POSTAGE_AUK &&
-	    postage != CH_SHIPPING_POSTAGE_AEUROPE &&
-	    postage != CH_SHIPPING_POSTAGE_AWORLD &&
-	    postage != CH_SHIPPING_POSTAGE_GUK &&
-	    postage != CH_SHIPPING_POSTAGE_GEUROPE &&
-	    postage != CH_SHIPPING_POSTAGE_GWORLD) {
+	if (postage != CH_SHIPPING_KIND_STRAP_UK &&
+	    postage != CH_SHIPPING_KIND_STRAP_EUROPE &&
+	    postage != CH_SHIPPING_KIND_STRAP_WORLD &&
+	    postage != CH_SHIPPING_KIND_ALS_UK &&
+	    postage != CH_SHIPPING_KIND_ALS_EUROPE &&
+	    postage != CH_SHIPPING_KIND_ALS_WORLD) {
 		number_of_devices = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
 	}
 skip:
@@ -1356,6 +1173,7 @@ skip:
 	for (i = 0; i < number_of_devices; i++) {
 		device_id = ch_database_device_find_oldest (priv->database,
 							    CH_DEVICE_STATE_CALIBRATED,
+							    hw_ver,
 							    &error);
 		if (device_id == G_MAXUINT32) {
 			ch_shipping_error_dialog (priv,
@@ -1424,20 +1242,20 @@ skip:
 	}
 
 	/* print when we will send the item */
-	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED) {
+	if (postage == CH_SHIPPING_KIND_CH2_UK_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH2_EUROPE_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH2_WORLD_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH1_UK_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH1_EUROPE_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH1_WORLD_SIGNED) {
 		if (number_of_devices == 1) {
 			g_string_append (str, "Once the device has been posted we will email again with the tracking number.\n");
 		} else {
 			g_string_append (str, "Once the devices have been posted we will email again with the tracking number.\n");
 		}
-	} else if (postage == CH_SHIPPING_POSTAGE_AUK ||
-		   postage == CH_SHIPPING_POSTAGE_AEUROPE ||
-		   postage == CH_SHIPPING_POSTAGE_AWORLD) {
+	} else if (postage == CH_SHIPPING_KIND_STRAP_UK ||
+		   postage == CH_SHIPPING_KIND_STRAP_EUROPE ||
+		   postage == CH_SHIPPING_KIND_STRAP_WORLD) {
 		g_string_append (str, "Once the strap and gasket upgrade has been posted a confirmation email will be sent.\n");
 	} else {
 		g_string_append (str, "Once the parcel has been posted a confirmation email will be sent.\n");
@@ -1497,7 +1315,8 @@ out:
 static void
 ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
-	ChShippingPostage postage;
+	ChShippingKind postage;
+	const gchar *device_name = NULL;
 	const gchar *tracking_number = NULL;
 	gboolean ret;
 	gchar *cmd = NULL;
@@ -1507,6 +1326,17 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 	GError *error = NULL;
 	GString *str = NULL;
 	guint32 order_id;
+
+	switch (postage) {
+	case CH_SHIPPING_KIND_CH2_UK_SIGNED:
+	case CH_SHIPPING_KIND_CH2_EUROPE_SIGNED:
+	case CH_SHIPPING_KIND_CH2_WORLD_SIGNED:
+		device_name = "ColorHug2";
+		break;
+	default:
+		device_name = "ColorHug";
+		break;
+	}
 
 	/* get the order id of the selected item */
 	gtk_tree_model_get (model, iter,
@@ -1523,32 +1353,32 @@ ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTr
 	if (device_ids[0] == '-') {
 		g_string_append (str, "I'm pleased to tell your accessory has been dispatched.\n");
 	} else if (tracking_number[0] == '\0' || g_strcmp0 (tracking_number, "n/a") == 0) {
-		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched.\n", device_ids);
+		g_string_append_printf (str, "I'm pleased to tell you %s #%s has been dispatched.\n", device_name, device_ids);
 	} else {
-		g_string_append_printf (str, "I'm pleased to tell you ColorHug #%s has been dispatched with tracking ID: %s\n", device_ids, tracking_number);
+		g_string_append_printf (str, "I'm pleased to tell you %s #%s has been dispatched with tracking ID: %s\n", device_name, device_ids, tracking_number);
 		g_string_append (str, "You will be able to track this item here: http://track2.royalmail.com/portal/rm/trackresults\n");
 	}
 	g_string_append (str, "\n");
-	if (postage == CH_SHIPPING_POSTAGE_UK ||
-	    postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_AUK ||
-	    postage == CH_SHIPPING_POSTAGE_GUK ||
-	    postage == CH_SHIPPING_POSTAGE_XUK ||
-	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED) {
+	if (postage == CH_SHIPPING_KIND_STRAP_UK ||
+	    postage == CH_SHIPPING_KIND_ALS_UK ||
+//	    postage == CH_SHIPPING_KIND_CH2_UK ||
+	    postage == CH_SHIPPING_KIND_CH2_UK_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH1_UK ||
+	    postage == CH_SHIPPING_KIND_CH1_UK_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 4 days.\n");
-	} else if (postage == CH_SHIPPING_POSTAGE_EUROPE ||
-		   postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
-		   postage == CH_SHIPPING_POSTAGE_AEUROPE ||
-		   postage == CH_SHIPPING_POSTAGE_GEUROPE ||
-		   postage == CH_SHIPPING_POSTAGE_XEUROPE ||
-		   postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED) {
+	} else if (postage == CH_SHIPPING_KIND_CH2_EUROPE_SIGNED ||
+//		   postage == CH_SHIPPING_KIND_CH2_EUROPE ||
+		   postage == CH_SHIPPING_KIND_STRAP_EUROPE ||
+		   postage == CH_SHIPPING_KIND_ALS_EUROPE ||
+		   postage == CH_SHIPPING_KIND_CH1_EUROPE ||
+		   postage == CH_SHIPPING_KIND_CH1_EUROPE_SIGNED) {
 		g_string_append (str, "Please allow up to two weeks for delivery, although most items are delivered within 8 days.\n");
-	} else if (postage == CH_SHIPPING_POSTAGE_WORLD ||
-		   postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED ||
-		   postage == CH_SHIPPING_POSTAGE_AWORLD ||
-		   postage == CH_SHIPPING_POSTAGE_GWORLD ||
-		   postage == CH_SHIPPING_POSTAGE_XWORLD ||
-		   postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED) {
+	} else if (postage == CH_SHIPPING_KIND_STRAP_WORLD ||
+		   postage == CH_SHIPPING_KIND_ALS_WORLD ||
+//		   postage == CH_SHIPPING_KIND_CH2_WORLD ||
+		   postage == CH_SHIPPING_KIND_CH2_WORLD_SIGNED ||
+		   postage == CH_SHIPPING_KIND_CH1_WORLD ||
+		   postage == CH_SHIPPING_KIND_CH1_WORLD_SIGNED) {
 		g_string_append (str, "Please allow up to three weeks for delivery, although most items are delivered within 10 days.\n");
 	}
 	g_string_append (str, "\n");
@@ -1865,16 +1695,7 @@ ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, 
 
 		/* get postage */
 		if (g_strstr_len (value, -1, "Amount:")) {
-			if (g_strstr_len (value, -1, "50")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping1"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "51")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping2"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "52")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping3"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "55")) {
+			if (g_strstr_len (value, -1, "55")) {
 				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping4"));
 				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
 			} else if (g_strstr_len (value, -1, "56")) {
@@ -1960,7 +1781,7 @@ out:
 static void
 ch_shipping_order_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, ChFactoryPrivate *priv)
 {
-	ChShippingPostage postage;
+	ChShippingKind postage;
 	const gchar *value;
 	gboolean ret = FALSE;
 
@@ -2010,12 +1831,12 @@ ch_shipping_order_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, C
 
 	/* check we have a tracking number */
 	postage = ch_shipping_order_get_radio_postage (priv);
-	if (postage == CH_SHIPPING_POSTAGE_UK_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_EUROPE_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_WORLD_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XUK_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XEUROPE_SIGNED ||
-	    postage == CH_SHIPPING_POSTAGE_XWORLD_SIGNED) {
+	if (postage == CH_SHIPPING_KIND_CH2_UK_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH2_EUROPE_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH2_WORLD_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH1_UK_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH1_EUROPE_SIGNED ||
+	    postage == CH_SHIPPING_KIND_CH1_WORLD_SIGNED) {
 		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking"));
 		value = gtk_entry_get_text (GTK_ENTRY (widget));
 		if (value[0] == '\0')
@@ -2036,16 +1857,16 @@ static void
 ch_shipping_radio_shippping_changed_cb (GtkToggleButton *button, ChFactoryPrivate *priv)
 {
 	GtkWidget *widget;
-	ChShippingPostage postage;
+	ChShippingKind postage;
 	if (!gtk_toggle_button_get_active (button))
 		return;
 	postage = ch_shipping_order_get_radio_postage (priv);
-	if (postage == CH_SHIPPING_POSTAGE_UK ||
-	    postage == CH_SHIPPING_POSTAGE_EUROPE ||
-	    postage == CH_SHIPPING_POSTAGE_WORLD ||
-	    postage == CH_SHIPPING_POSTAGE_XUK ||
-	    postage == CH_SHIPPING_POSTAGE_XEUROPE ||
-	    postage == CH_SHIPPING_POSTAGE_XWORLD) {
+	if (postage == CH_SHIPPING_KIND_CH1_UK ||
+	    postage == CH_SHIPPING_KIND_CH1_EUROPE ||
+	    postage == CH_SHIPPING_KIND_CH1_WORLD) {
+//	    postage == CH_SHIPPING_KIND_CH2_EUROPE ||
+//	    postage == CH_SHIPPING_KIND_CH2_UK ||
+//	    postage == CH_SHIPPING_KIND_CH2_WORLD) {
 		widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking"));
 		gtk_entry_set_text (GTK_ENTRY (widget), "n/a");
 		gtk_widget_set_sensitive (widget, FALSE);
@@ -2149,15 +1970,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_refresh"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_refresh_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping1"));
-	g_signal_connect (widget, "toggled",
-			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping2"));
-	g_signal_connect (widget, "toggled",
-			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping3"));
-	g_signal_connect (widget, "toggled",
-			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping4"));
 	g_signal_connect (widget, "toggled",
 			  G_CALLBACK (ch_shipping_radio_shippping_changed_cb), priv);

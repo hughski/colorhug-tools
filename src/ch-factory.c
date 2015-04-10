@@ -58,8 +58,45 @@ typedef struct {
 	ChDatabase	*database;
 	GPtrArray	*samples_ti1;
 	guint		 samples_ti1_idx;
+	guint8		 hw_version;
 	GHashTable	*results; /* key = device id, value = GPtrArray of CdColorXYZ values */
 } ChFactoryPrivate;
+
+#if 0
+/**
+ * _ch_device_get_download_id:
+ * @device: the #GUsbDevice
+ *
+ * Returns the string identifier to use for the device type.
+ *
+ * Return value: string, e.g. "colorhug2"
+ *
+ * Since: x.x.x
+ **/
+static const gchar *
+_ch_device_get_download_id (GUsbDevice *device)
+{
+	const char *str = NULL;
+	switch (ch_device_get_mode (device)) {
+	case CH_DEVICE_MODE_LEGACY:
+	case CH_DEVICE_MODE_BOOTLOADER:
+	case CH_DEVICE_MODE_FIRMWARE:
+		str = "colorhug";
+		break;
+	case CH_DEVICE_MODE_BOOTLOADER2:
+	case CH_DEVICE_MODE_FIRMWARE2:
+		str = "colorhug2";
+		break;
+	case CH_DEVICE_MODE_BOOTLOADER_PLUS:
+	case CH_DEVICE_MODE_FIRMWARE_PLUS:
+		str = "colorhug-plus";
+		break;
+	default:
+		break;
+	}
+	return str;
+}
+#endif
 
 enum {
 	COLUMN_ENABLED,
@@ -699,18 +736,23 @@ ch_factory_measure_check_matrix (ChFactoryPrivate *priv,
 				 GError **error)
 {
 	gdouble det;
-	gdouble det_ave = 35.85f;
-	gdouble det_error = 20.00f;
+	gdouble det_ave;
+	gdouble det_error;
 
 	/* different scale */
-	if (priv->hw_version == 2) {
-		det_ave = 99.99f;
-		det_error = 99.99f;
-//		return TRUE;
+	if (priv->hw_version == 1) {
+		det_ave = 35.85f;
+		det_error = 20.00f;
+	} else if (priv->hw_version == 2) {
+		det_ave = 0.23f;
+		det_error = 0.40f;
+	} else {
+		g_assert_not_reached ();
 	}
 
 	/* check the scale is correct */
 	det = cd_mat33_determinant (calibration);
+	g_debug ("det=%f", det);
 	if (ABS (det - det_ave) > det_error) {
 		g_set_error (error, 1, 0,
 			     "Matrix determinant out of range: %f", det);
@@ -880,7 +922,6 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 		return;
 	}
 
-if (priv->hw_version == 1) {
 	/* allow this device to be sent out */
 	ret = ch_database_device_set_state (priv->database,
 					    serial_number,
@@ -891,10 +932,9 @@ if (priv->hw_version == 1) {
 		g_warning ("failed to update database: %s", error->message);
 		return;
 	}
-}
 
 	/* print device label */
-if(1)	ch_factory_print_device_label (priv, serial_number);
+	ch_factory_print_device_label (priv, serial_number);
 
 	/* success */
 	ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_CALIBRATED);
@@ -933,17 +973,14 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	GUsbDevice *device;
 	_cleanup_error_free_ GError *error = NULL;
 	_cleanup_free_ gchar *filename = NULL;
-	_cleanup_free_ gchar *local_patches_source = NULL;
 	_cleanup_ptrarray_unref_ GPtrArray *devices = NULL;
 
 	/* ignore devices that are replugged */
 	priv->in_calibration = TRUE;
 
 	/* get the ti1 file from gsettings */
-	local_patches_source = g_build_filename (priv->local_calibration_uri,
-						 "patches.ti1", NULL);
 	filename = g_build_filename (priv->local_calibration_uri,
-				     local_patches_source,
+				     "patches.ti1",
 				     NULL);
 	ret = ch_factory_load_samples (priv, filename, &error);
 	if (!ret) {
@@ -1053,13 +1090,13 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		return;
 
 	/* setup the measure window */
-	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1180, 1850);
-//	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1850, 1000);
+//	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1180, 1850);
+	gtk_widget_set_size_request (GTK_WIDGET (priv->sample_window), 1850, 1000);
 	cd_sample_window_set_fraction (CD_SAMPLE_WINDOW (priv->sample_window), 0);
-	gtk_window_stick (priv->sample_window);
+//	gtk_window_stick (priv->sample_window);
 	gtk_window_present (priv->sample_window);
 //	gtk_window_move (priv->sample_window, 1920 + 10, 10);
-	gtk_window_move (priv->sample_window, 10, 10);
+	gtk_window_move (priv->sample_window, 10, 900);
 
 	/* update global percentage */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "progressbar_calibration"));
@@ -1363,7 +1400,7 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	/* finds the colord device which has a specific property */
 	device = cd_client_find_device_by_property_sync (priv->client,
 							 CD_DEVICE_METADATA_XRANDR_NAME,
-							 "DP2-2",
+							 "DP2-3",
 							 NULL,
 							 &error);
 	if (device == NULL) {
@@ -1504,8 +1541,7 @@ main (int argc, char **argv)
 	priv->settings = g_settings_new ("com.hughski.colorhug-tools");
 	priv->local_calibration_uri = g_settings_get_string (priv->settings,
 							     "local-calibration-uri");
-	priv->local_firmware_uri = g_settings_get_string (priv->settings,
-							  "local-firmware-uri");
+	priv->local_calibration_uri = g_strdup ("/home/hughsie/Code/ColorHug/ColorHug2/calibration");		// FIXME
 	g_signal_connect (priv->device_queue,
 			  "device-failed",
 			  G_CALLBACK (ch_factory_device_queue_device_failed_cb),
