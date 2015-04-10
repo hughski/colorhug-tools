@@ -25,11 +25,13 @@
 #include <gtk/gtk.h>
 #include <locale.h>
 #include <colord.h>
+#include <colord-gtk.h>
 #include <colorhug.h>
 
 #include "ch-cleanup.h"
 
 typedef struct {
+	CdSampleWidget	*sample_widget;
 	ChDeviceQueue	*device_queue;
 	GUsbDevice	*device;
 	GtkApplication	*application;
@@ -70,58 +72,17 @@ ch_assemble_set_color (ChAssemblePrivate *priv,
 		       gdouble green,
 		       gdouble blue)
 {
-	GdkPixbuf *pixbuf;
-	gint height;
-	gint i;
-	gint width;
-	GtkWidget *widget;
-	guchar *data;
-	guchar *pixels;
+	CdColorRGB color;
 
-	/* get the widget size */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "window_assemble"));
-	gtk_window_get_size (GTK_WINDOW (widget), &width, &height);
-	width -= 100;
-	height -= 100;
-	if (width < 950)
-		width = 950;
-	if (height < 460)
-		height = 460;
-
-	/* if no pixbuf, create it */
-	g_debug ("setting RGB: %f, %f, %f", red, green, blue);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "image_success"));
-	pixbuf = gtk_image_get_pixbuf (GTK_IMAGE (widget));
-	if (pixbuf == NULL) {
-		data = g_new0 (guchar, width * height * 3);
-		pixbuf = gdk_pixbuf_new_from_data (data,
-						   GDK_COLORSPACE_RGB,
-						   FALSE,
-						   8,
-						   width,
-						   height,
-						   width * 3,
-						   (GdkPixbufDestroyNotify) g_free,
-						   NULL);
-		gtk_image_set_from_pixbuf (GTK_IMAGE (widget),
-					   pixbuf);
-	}
-
-	/* get the pixbuf size */
-	height = gdk_pixbuf_get_height (pixbuf);
-	width = gdk_pixbuf_get_width (pixbuf);
-
-	/* set the pixel array */
-	pixels = gdk_pixbuf_get_pixels (pixbuf);
-	for (i = 0; i < width * height * 3; i += 3) {
-		pixels[i+0] = (guchar) (red * 255.0f);
-		pixels[i+1] = (guchar) (green * 255.0f);
-		pixels[i+2] = (guchar) (blue * 255.0f);
-	}
+	/* set color */
+	color.R = red;
+	color.G = green;
+	color.B = blue;
+	cd_sample_widget_set_color (priv->sample_widget, &color);
 
 	/* force redraw */
-	gtk_widget_set_visible (widget, FALSE);
-	gtk_widget_set_visible (widget, TRUE);
+	gtk_widget_set_visible (GTK_WIDGET (priv->sample_widget), FALSE);
+	gtk_widget_set_visible (GTK_WIDGET (priv->sample_widget), TRUE);
 
 }
 
@@ -398,6 +359,7 @@ ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 {
 	_cleanup_error_free_ GError *error = NULL;
 	gint retval;
+	GtkWidget *box;
 	GtkWidget *main_window;
 
 	/* get UI */
@@ -419,6 +381,8 @@ ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 	gtk_widget_set_size_request (main_window, 600, 400);
 
 	/* Set initial state */
+	box = GTK_WIDGET (gtk_builder_get_object (priv->builder, "box1"));
+	gtk_box_pack_start (GTK_BOX (box), GTK_WIDGET (priv->sample_widget), TRUE, TRUE, 0);
 	ch_assemble_set_label (priv, _("No device detected"));
 	ch_assemble_set_color (priv, 0.5f, 0.5f, 0.5f);
 
@@ -531,6 +495,7 @@ main (int argc, char **argv)
 	g_option_context_free (context);
 
 	priv = g_new0 (ChAssemblePrivate, 1);
+	priv->sample_widget = CD_SAMPLE_WIDGET (cd_sample_widget_new ());
 	priv->usb_ctx = g_usb_context_new (NULL);
 	priv->device_queue = ch_device_queue_new ();
 	g_signal_connect (priv->usb_ctx, "device-added",
