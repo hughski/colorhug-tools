@@ -87,6 +87,22 @@ ch_assemble_set_color (ChAssemblePrivate *priv,
 }
 
 /**
+ * ch_assemble_set_leds_flash_cb:
+ **/
+static void
+ch_assemble_set_leds_flash_cb (GObject *source, GAsyncResult *res, gpointer user_data)
+{
+	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
+	_cleanup_error_free_ GError *error = NULL;
+
+	/* get result */
+	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
+		g_warning ("Failed to set LEDs: %s", error->message);
+		return;
+	}
+}
+
+/**
  * ch_assemble_set_serial_cb:
  **/
 static void
@@ -100,6 +116,16 @@ ch_assemble_set_serial_cb (GObject *source, GAsyncResult *res, gpointer user_dat
 		g_warning ("Failed to set flash success number: %s", error->message);
 		return;
 	}
+
+	/* set LEDs green */
+	ch_device_queue_set_leds (priv->device_queue, priv->device,
+				  CH_STATUS_LED_GREEN, 0, 0, 0);
+	ch_device_queue_process_async (priv->device_queue,
+				       CH_DEVICE_QUEUE_PROCESS_FLAGS_NONE,
+				       NULL,
+				       ch_assemble_set_leds_flash_cb,
+				       priv);
+
 	ch_assemble_set_label (priv, _("All okay!"));
 	ch_assemble_set_color (priv, 0.0f, 1.0f, 0.0f);
 }
