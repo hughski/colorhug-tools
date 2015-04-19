@@ -53,7 +53,6 @@ glib-compile-schemas %{_datadir}/glib-2.0/schemas &> /dev/null || :
 %dir %{_datadir}/colorhug-tools
 %{_datadir}/colorhug-tools
 %{_bindir}/colorhug*
-%{_libexecdir}/colorhug*
 %{_datadir}/applications/*.desktop
 %{_datadir}/glib-2.0/schemas/*.gschema.xml
 

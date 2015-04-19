@@ -71,15 +71,4 @@ colorhug_shipping_LDADD =				\
 colorhug_shipping_CFLAGS =				\
 	$(WARNINGFLAGS_C)
 
-libexec_PROGRAMS =					\
-	colorhug-compute-default-ccmx
-colorhug_compute_default_ccmx_SOURCES =			\
-	ch-compute-default-ccmx.c
-colorhug_compute_default_ccmx_LDADD =			\
-	$(COLORD_LIBS)					\
-	$(COLORHUG_LIBS)				\
-	-lm
-colorhug_compute_default_ccmx_CFLAGS =			\
-	$(WARNINGFLAGS_C)
-
 -include $(top_srcdir)/git.mk
