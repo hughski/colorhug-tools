@@ -36,7 +36,7 @@
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
-#define CH_FACTORY_BATCH_NUMBER		16
+#define CH_FACTORY_BATCH_NUMBER		18
 
 #define CH_DEVICE_ICON_BOOTLOADER	"colorimeter-colorhug-inactive"
 #define CH_DEVICE_ICON_BUSY		"emblem-downloads"
@@ -1400,7 +1400,7 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	/* finds the colord device which has a specific property */
 	device = cd_client_find_device_by_property_sync (priv->client,
 							 CD_DEVICE_METADATA_XRANDR_NAME,
-							 "DP2-3",
+							 "DVI-0",
 							 NULL,
 							 &error);
 	if (device == NULL) {
