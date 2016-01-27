@@ -404,7 +404,7 @@ ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter
 		ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/cn22-strap.png");
 	} else {
 		if (ch_shipping_device_to_price (postage) == 60 ||
-		    ch_shipping_device_to_price (postage) == 75) {
+		    ch_shipping_device_to_price (postage) == 85) {
 			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping60.png");
 		} else if (ch_shipping_device_to_price (postage) == 20) {
 			ch_shipping_string_replace (str, "$IMAGE$", "/home/hughsie/Code/ColorHug/Documents/shipping20.png");
