@@ -21,6 +21,8 @@ BuildRequires: sqlite-devel
 BuildRequires: colord-gtk-devel
 BuildRequires: libcanberra-devel >= 0.10
 
+Requires: gnome-icon-theme-extras
+
 %description
 The Hughski ColorHug colorimeter is a low cost open-source hardware
 sensor used to calibrate screens.
