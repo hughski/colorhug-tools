@@ -91,9 +91,6 @@ ch_cell_renderer_postage_class_init (ChCellRendererPostageClass *class)
 					 "VALUE", 0, G_MAXUINT, 0, G_PARAM_READWRITE));
 }
 
-/**
- * ch_cell_renderer_postage_init:
- **/
 static void
 ch_cell_renderer_postage_init (ChCellRendererPostage *cru)
 {
@@ -101,9 +98,6 @@ ch_cell_renderer_postage_init (ChCellRendererPostage *cru)
 	cru->markup = NULL;
 }
 
-/**
- * ch_cell_renderer_postage_new:
- **/
 GtkCellRenderer *
 ch_cell_renderer_postage_new (void)
 {

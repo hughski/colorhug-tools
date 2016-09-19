@@ -36,7 +36,7 @@
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
-#define CH_FACTORY_BATCH_NUMBER		18
+#define CH_FACTORY_BATCH_NUMBER		19
 
 #define CH_DEVICE_ICON_BOOTLOADER	"colorimeter-colorhug-inactive"
 #define CH_DEVICE_ICON_BUSY		"emblem-downloads"
@@ -108,9 +108,6 @@ enum {
 	COLUMN_LAST
 };
 
-/**
- * ch_factory_error_dialog:
- **/
 static void
 ch_factory_error_dialog (ChFactoryPrivate *priv,
 			 const gchar *title,
@@ -131,9 +128,6 @@ ch_factory_error_dialog (ChFactoryPrivate *priv,
 	gtk_widget_destroy (dialog);
 }
 
-/**
- * ch_factory_activate_cb:
- **/
 static void
 ch_factory_activate_cb (GApplication *application, ChFactoryPrivate *priv)
 {
@@ -142,9 +136,6 @@ ch_factory_activate_cb (GApplication *application, ChFactoryPrivate *priv)
 	gtk_window_present (window);
 }
 
-/**
- * ch_factory_close_button_cb:
- **/
 static void
 ch_factory_close_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -152,9 +143,6 @@ ch_factory_close_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gtk_widget_destroy (widget);
 }
 
-/**
- * ch_factory_find_by_id:
- **/
 static gboolean
 ch_factory_find_by_id (GtkTreeModel *model,
 		       GtkTreeIter *iter_found,
@@ -179,9 +167,6 @@ ch_factory_find_by_id (GtkTreeModel *model,
 	return ret;
 }
 
-/**
- * ch_factory_set_device_state:
- **/
 static void
 ch_factory_set_device_state (ChFactoryPrivate *priv,
 			     GUsbDevice *device,
@@ -202,9 +187,6 @@ ch_factory_set_device_state (ChFactoryPrivate *priv,
 			    -1);
 }
 
-/**
- * ch_factory_set_device_enabled:
- **/
 static void
 ch_factory_set_device_enabled (ChFactoryPrivate *priv,
 			       GUsbDevice *device,
@@ -225,9 +207,6 @@ ch_factory_set_device_enabled (ChFactoryPrivate *priv,
 			    -1);
 }
 
-/**
- * ch_factory_set_device_description:
- **/
 static void
 ch_factory_set_device_description (ChFactoryPrivate *priv,
 				   GUsbDevice *device,
@@ -248,9 +227,6 @@ ch_factory_set_device_description (ChFactoryPrivate *priv,
 			    -1);
 }
 
-/**
- * ch_factory_set_device_error:
- **/
 static void
 ch_factory_set_device_error (ChFactoryPrivate *priv,
 			     GUsbDevice *device,
@@ -275,9 +251,6 @@ ch_factory_set_device_error (ChFactoryPrivate *priv,
 			    -1);
 }
 
-/**
- * ch_factory_got_device:
- **/
 static void
 ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 {
@@ -384,9 +357,6 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	}
 }
 
-/**
- * ch_factory_removed_device:
- **/
 static void
 ch_factory_removed_device (ChFactoryPrivate *priv, GUsbDevice *device)
 {
@@ -408,9 +378,6 @@ ch_factory_removed_device (ChFactoryPrivate *priv, GUsbDevice *device)
 			    -1);
 }
 
-/**
- * ch_factory_get_active_devices:
- **/
 static GPtrArray *
 ch_factory_get_active_devices (ChFactoryPrivate *priv)
 {
@@ -445,9 +412,6 @@ ch_factory_get_active_devices (ChFactoryPrivate *priv)
 	return devices;
 }
 
-/**
- * ch_factory_set_serial_cb:
- **/
 static void
 ch_factory_set_serial_cb (GObject *source,
 			  GAsyncResult *res,
@@ -465,9 +429,6 @@ ch_factory_set_serial_cb (GObject *source,
 		g_warning ("failed to set serial numbers: %s", error->message);
 }
 
-/**
- * ch_factory_serial_button_cb:
- **/
 static void
 ch_factory_serial_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -535,9 +496,6 @@ ch_factory_serial_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 				       priv);
 }
 
-/**
- * ch_factory_load_samples:
- **/
 static gboolean
 ch_factory_load_samples (ChFactoryPrivate *priv,
 			 const gchar *ti1_fn,
@@ -574,9 +532,6 @@ ch_factory_load_samples (ChFactoryPrivate *priv,
 	return TRUE;
 }
 
-/**
- * ch_factory_device_is_shit:
- **/
 static void
 ch_factory_device_is_shit (ChFactoryPrivate *priv,
 			   GUsbDevice *device,
@@ -594,9 +549,6 @@ ch_factory_device_is_shit (ChFactoryPrivate *priv,
 static void ch_factory_measure		(ChFactoryPrivate *priv);
 static void ch_factory_measure_save	(ChFactoryPrivate *priv);
 
-/**
- * ch_factory_measure_done_cb:
- **/
 static void
 ch_factory_measure_done_cb (GObject *source,
 			    GAsyncResult *res,
@@ -658,9 +610,6 @@ ch_factory_measure_done_cb (GObject *source,
 	gtk_widget_hide (GTK_WIDGET (priv->sample_window));
 }
 
-/**
- * ch_factory_measure_cb:
- **/
 static gboolean
 ch_factory_measure_cb (ChFactoryPrivate *priv)
 {
@@ -696,9 +645,6 @@ ch_factory_measure_cb (ChFactoryPrivate *priv)
 	return FALSE;
 }
 
-/**
- * ch_factory_measure:
- **/
 static void
 ch_factory_measure (ChFactoryPrivate *priv)
 {
@@ -727,9 +673,6 @@ ch_factory_measure (ChFactoryPrivate *priv)
 	g_timeout_add (800, (GSourceFunc) ch_factory_measure_cb, priv);
 }
 
-/**
- * ch_factory_measure_check_matrix:
- **/
 static gboolean
 ch_factory_measure_check_matrix (ChFactoryPrivate *priv,
 				 const CdMat3x3 *calibration,
@@ -761,9 +704,6 @@ ch_factory_measure_check_matrix (ChFactoryPrivate *priv,
 	return TRUE;
 }
 
-/**
- * ch_factory_print_device_label:
- **/
 static void
 ch_factory_print_device_label (ChFactoryPrivate *priv, guint32 device_serial)
 {
@@ -792,9 +732,6 @@ ch_factory_print_device_label (ChFactoryPrivate *priv, guint32 device_serial)
 	}
 }
 
-/**
- * ch_factory_measure_save_device:
- **/
 static void
 ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 {
@@ -940,9 +877,6 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_CALIBRATED);
 }
 
-/**
- * ch_factory_measure_save:
- **/
 static void
 ch_factory_measure_save (ChFactoryPrivate *priv)
 {
@@ -958,9 +892,6 @@ ch_factory_measure_save (ChFactoryPrivate *priv)
 	}
 }
 
-/**
- * ch_factory_calibrate_button_cb:
- **/
 static void
 ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -1107,9 +1038,6 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	ch_factory_measure (priv);
 }
 
-/**
- * ch_factory_set_leds_cb:
- **/
 static void
 ch_factory_set_leds_cb (GObject *source,
 			GAsyncResult *res,
@@ -1127,9 +1055,6 @@ ch_factory_set_leds_cb (GObject *source,
 		g_warning ("failed to set-leds: %s", error->message);
 }
 
-/**
- * ch_factory_row_activated_cb:
- **/
 static void
 ch_factory_row_activated_cb (GtkTreeView *treeview,
 			     GtkTreePath *path,
@@ -1173,9 +1098,6 @@ ch_factory_row_activated_cb (GtkTreeView *treeview,
 				       ch_factory_set_leds_cb,
 				       priv);
 }
-/**
- * ch_factory_active_clicked_cb:
- **/
 static void
 ch_factory_active_clicked_cb (GtkCellRendererToggle *cell,
 			      const gchar *path_str,
@@ -1195,9 +1117,6 @@ ch_factory_active_clicked_cb (GtkCellRendererToggle *cell,
 	gtk_tree_path_free (path);
 }
 
-/**
- * ch_factory_treeview_add_columns:
- **/
 static void
 ch_factory_treeview_add_columns (ChFactoryPrivate *priv)
 {
@@ -1248,9 +1167,6 @@ ch_factory_treeview_add_columns (ChFactoryPrivate *priv)
 	gtk_tree_view_append_column (treeview, column);
 }
 
-/**
- * ch_factory_select_all_cb:
- **/
 static void
 ch_factory_select_all_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
 {
@@ -1268,9 +1184,6 @@ ch_factory_select_all_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
 	}
 }
 
-/**
- * ch_factory_select_none_cb:
- **/
 static void
 ch_factory_select_none_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
 {
@@ -1288,9 +1201,6 @@ ch_factory_select_none_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
 	}
 }
 
-/**
- * ch_factory_select_invert_cb:
- **/
 static void
 ch_factory_select_invert_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
 {
@@ -1312,9 +1222,6 @@ ch_factory_select_invert_cb (GtkToolButton *toolbutton, ChFactoryPrivate *priv)
 	}
 }
 
-/**
- * ch_factory_startup_cb:
- **/
 static void
 ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 {
@@ -1426,9 +1333,6 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	gtk_widget_show (main_window);
 }
 
-/**
- * ch_factory_device_added_cb:
- **/
 static void
 ch_factory_device_added_cb (GUsbContext *usb_ctx,
 			    GUsbDevice *device,
@@ -1441,9 +1345,6 @@ ch_factory_device_added_cb (GUsbContext *usb_ctx,
 	}
 }
 
-/**
- * ch_factory_device_removed_cb:
- **/
 static void
 ch_factory_device_removed_cb (GUsbContext *usb_ctx,
 			      GUsbDevice *device,
@@ -1483,18 +1384,12 @@ ch_factory_device_queue_progress_changed_cb (ChDeviceQueue	*device_queue,
 	gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (widget), (gdouble) percentage / 100.0f);
 }
 
-/**
- * ch_factory_ignore_cb:
- **/
 static void
 ch_factory_ignore_cb (const gchar *log_domain, GLogLevelFlags log_level,
 		      const gchar *message, gpointer user_data)
 {
 }
 
-/**
- * main:
- **/
 int
 main (int argc, char **argv)
 {

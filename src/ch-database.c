@@ -32,11 +32,6 @@ static void     ch_database_finalize	(GObject     *object);
 
 #define CH_DATABASE_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), CH_TYPE_DATABASE, ChDatabasePrivate))
 
-/**
- * ChDatabasePrivate:
- *
- * Private #ChDatabase data
- **/
 struct _ChDatabasePrivate
 {
 	sqlite3				*db;
@@ -46,9 +41,6 @@ struct _ChDatabasePrivate
 
 G_DEFINE_TYPE (ChDatabase, ch_database, G_TYPE_OBJECT)
 
-/**
- * ch_database_state_to_string:
- **/
 const gchar *
 ch_database_state_to_string (ChDeviceState state)
 {
@@ -61,9 +53,6 @@ ch_database_state_to_string (ChDeviceState state)
 	return NULL;
 }
 
-/**
- * ch_database_set_uri:
- **/
 void
 ch_database_set_uri (ChDatabase *database, const gchar *uri)
 {
@@ -73,9 +62,6 @@ ch_database_set_uri (ChDatabase *database, const gchar *uri)
 	database->priv->uri = g_strdup (uri);
 }
 
-/**
- * ch_database_load:
- **/
 static gboolean
 ch_database_load (ChDatabase *database, GError **error)
 {
@@ -232,9 +218,6 @@ out:
 	return ret;
 }
 
-/**
- * ch_database_device_get_state_cb:
- **/
 static gint
 ch_database_device_get_state_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -243,9 +226,6 @@ ch_database_device_get_state_cb (void *data, gint argc, gchar **argv, gchar **co
 	return 0;
 }
 
-/**
- * ch_database_device_get_state:
- **/
 ChDeviceState
 ch_database_device_get_state (ChDatabase *database,
 			      guint32 device_id,
@@ -288,9 +268,6 @@ out:
 	return state;
 }
 
-/**
- * ch_database_get_next_tracking_number_cb:
- **/
 static gint
 ch_database_get_next_tracking_number_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -299,9 +276,6 @@ ch_database_get_next_tracking_number_cb (void *data, gint argc, gchar **argv, gc
 	return 0;
 }
 
-/**
- * ch_database_get_next_tracking_number:
- **/
 gchar *
 ch_database_get_next_tracking_number (ChDatabase *database,
 				      GError **error)
@@ -539,9 +513,6 @@ out:
 	return ret;
 }
 
-/**
- * ch_database_device_get_number_cb:
- **/
 static gint
 ch_database_device_get_number_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -600,9 +571,6 @@ out:
 	return len;
 }
 
-/**
- * ch_database_device_find_oldest_cb:
- **/
 static gint
 ch_database_device_find_oldest_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -665,9 +633,6 @@ out:
 	return id;
 }
 
-/**
- * ch_database_order_get_device_ids_cb:
- **/
 static gint
 ch_database_order_get_device_ids_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -678,9 +643,6 @@ ch_database_order_get_device_ids_cb (void *data, gint argc, gchar **argv, gchar 
 	return 0;
 }
 
-/**
- * ch_database_order_get_device_ids:
- **/
 GArray *
 ch_database_order_get_device_ids (ChDatabase *database,
 				 guint32 order_id,
@@ -728,9 +690,6 @@ out:
 	return array;
 }
 
-/**
- * ch_database_order_get_comment_cb:
- **/
 static gint
 ch_database_order_get_comment_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -739,9 +698,6 @@ ch_database_order_get_comment_cb (void *data, gint argc, gchar **argv, gchar **c
 	return 0;
 }
 
-/**
- * ch_database_order_get_comment:
- **/
 gchar *
 ch_database_order_get_comment (ChDatabase *database,
 				guint32 order_id,
@@ -782,9 +738,6 @@ out:
 	return comment;
 }
 
-/**
- * ch_database_order_get_tracking_cb:
- **/
 static gint
 ch_database_order_get_tracking_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -793,9 +746,6 @@ ch_database_order_get_tracking_cb (void *data, gint argc, gchar **argv, gchar **
 	return 0;
 }
 
-/**
- * ch_database_order_get_tracking:
- **/
 gchar *
 ch_database_order_get_tracking (ChDatabase *database,
 				guint32 order_id,
@@ -836,9 +786,6 @@ out:
 	return tracking;
 }
 
-/**
- * ch_database_get_all_orders_cb:
- **/
 static gint
 ch_database_get_all_orders_cb (void *data, gint argc, gchar **argv, gchar **col_name)
 {
@@ -963,9 +910,6 @@ out:
 	return id;
 }
 
-/**
- * ch_database_class_init:
- **/
 static void
 ch_database_class_init (ChDatabaseClass *klass)
 {
@@ -974,18 +918,12 @@ ch_database_class_init (ChDatabaseClass *klass)
 	g_type_class_add_private (klass, sizeof (ChDatabasePrivate));
 }
 
-/**
- * ch_database_init:
- **/
 static void
 ch_database_init (ChDatabase *database)
 {
 	database->priv = CH_DATABASE_GET_PRIVATE (database);
 }
 
-/**
- * ch_database_finalize:
- **/
 static void
 ch_database_finalize (GObject *object)
 {
@@ -1001,11 +939,6 @@ ch_database_finalize (GObject *object)
 	G_OBJECT_CLASS (ch_database_parent_class)->finalize (object);
 }
 
-/**
- * ch_database_new:
- *
- * Return value: a new #ChDatabase object.
- **/
 ChDatabase *
 ch_database_new (void)
 {

@@ -80,10 +80,6 @@ ch_cell_renderer_date_set_property (GObject *object, guint param_id,
 	}
 }
 
-/**
- * ch_cell_renderer_finalize:
- * @object: The object to finalize
- **/
 static void
 ch_cell_renderer_finalize (GObject *object)
 {
@@ -109,9 +105,6 @@ ch_cell_renderer_date_class_init (ChCellRendererDateClass *class)
 					 "VALUE", 0, G_MAXINT64, 0, G_PARAM_READWRITE));
 }
 
-/**
- * ch_cell_renderer_date_init:
- **/
 static void
 ch_cell_renderer_date_init (ChCellRendererDate *cru)
 {
@@ -119,9 +112,6 @@ ch_cell_renderer_date_init (ChCellRendererDate *cru)
 	cru->markup = NULL;
 }
 
-/**
- * ch_cell_renderer_date_new:
- **/
 GtkCellRenderer *
 ch_cell_renderer_date_new (void)
 {

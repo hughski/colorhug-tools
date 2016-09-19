@@ -27,9 +27,6 @@
 
 #include "ch-shipping-common.h"
 
-/**
- * ch_shipping_string_load:
- **/
 GString *
 ch_shipping_string_load (const gchar *filename, GError **error)
 {
@@ -97,9 +94,6 @@ out:
 	return cnt;
 }
 
-/**
- * ch_shipping_print_latex_doc:
- **/
 gboolean
 ch_shipping_print_latex_doc (const gchar *str, const gchar *printer, GError **error)
 {
@@ -165,9 +159,6 @@ out:
 	return ret;
 }
 
-/**
- * ch_shipping_print_svg_doc:
- **/
 gboolean
 ch_shipping_print_svg_doc (const gchar *str, const gchar *printer, GError **error)
 {
@@ -239,9 +230,6 @@ out:
 	return ret;
 }
 
-/**
- * ch_shipping_kind_to_price:
- **/
 gdouble
 ch_shipping_kind_to_price (ChShippingKind postage)
 {
@@ -290,9 +278,6 @@ ch_shipping_kind_to_price (ChShippingKind postage)
 	return 0;
 }
 
-/**
- * ch_shipping_kind_to_service:
- **/
 const gchar *
 ch_shipping_kind_to_service (ChShippingKind postage)
 {
@@ -349,9 +334,6 @@ ch_shipping_kind_to_service (ChShippingKind postage)
 	return NULL;
 }
 
-/**
- * ch_shipping_device_to_price:
- **/
 guint
 ch_shipping_device_to_price (ChShippingKind postage)
 {
@@ -392,9 +374,6 @@ ch_shipping_device_to_price (ChShippingKind postage)
 	return 0;
 }
 
-/**
- * ch_shipping_kind_to_string:
- **/
 const gchar *
 ch_shipping_kind_to_string (ChShippingKind postage)
 {
@@ -439,9 +418,6 @@ ch_shipping_kind_to_string (ChShippingKind postage)
 	return NULL;
 }
 
-/**
- * ch_shipping_send_email:
- **/
 gboolean
 ch_shipping_send_email (const gchar *sender,
 			const gchar *recipient,

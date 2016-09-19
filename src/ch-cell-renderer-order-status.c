@@ -113,18 +113,12 @@ ch_cell_renderer_order_status_class_init (ChCellRendererOrderStatusClass *class)
 	g_type_class_add_private (object_class, sizeof (ChCellRendererOrderStatusPrivate));
 }
 
-/**
- * ch_cell_renderer_order_status_init:
- **/
 static void
 ch_cell_renderer_order_status_init (ChCellRendererOrderStatus *cru)
 {
 	cru->priv = CH_CELL_RENDERER_ORDER_STATUS_GET_PRIVATE (cru);
 }
 
-/**
- * ch_cell_renderer_order_status_new:
- **/
 GtkCellRenderer *
 ch_cell_renderer_order_status_new (void)
 {

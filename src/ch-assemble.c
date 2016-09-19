@@ -39,9 +39,6 @@ typedef struct {
 	GUsbContext	*usb_ctx;
 } ChAssemblePrivate;
 
-/**
- * ch_assemble_activate_cb:
- **/
 static void
 ch_assemble_activate_cb (GApplication *application,
 			 ChAssemblePrivate *priv)
@@ -51,9 +48,6 @@ ch_assemble_activate_cb (GApplication *application,
 	gtk_window_present (window);
 }
 
-/**
- * ch_assemble_set_label:
- **/
 static void
 ch_assemble_set_label (ChAssemblePrivate *priv, const gchar *text)
 {
@@ -63,9 +57,6 @@ ch_assemble_set_label (ChAssemblePrivate *priv, const gchar *text)
 
 }
 
-/**
- * ch_assemble_set_color:
- **/
 static void
 ch_assemble_set_color (ChAssemblePrivate *priv,
 		       gdouble red,
@@ -86,9 +77,6 @@ ch_assemble_set_color (ChAssemblePrivate *priv,
 
 }
 
-/**
- * ch_assemble_set_leds_flash_cb:
- **/
 static void
 ch_assemble_set_leds_flash_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
@@ -102,9 +90,6 @@ ch_assemble_set_leds_flash_cb (GObject *source, GAsyncResult *res, gpointer user
 	}
 }
 
-/**
- * ch_assemble_set_serial_cb:
- **/
 static void
 ch_assemble_set_serial_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
@@ -130,9 +115,6 @@ ch_assemble_set_serial_cb (GObject *source, GAsyncResult *res, gpointer user_dat
 	ch_assemble_set_color (priv, 0.0f, 1.0f, 0.0f);
 }
 
-/**
- * ch_assemble_boot_flash_cb:
- **/
 static void
 ch_assemble_boot_flash_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
@@ -146,9 +128,6 @@ ch_assemble_boot_flash_cb (GObject *source, GAsyncResult *res, gpointer user_dat
 	}
 }
 
-/**
- * ch_assemble_firmware_cb:
- **/
 static void
 ch_assemble_firmware_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
@@ -205,9 +184,6 @@ _ch_device_get_download_id (GUsbDevice *device)
 	return str;
 }
 
-/**
- * ch_assemble_flash_firmware:
- **/
 static void
 ch_assemble_flash_firmware (ChAssemblePrivate *priv)
 {
@@ -253,9 +229,6 @@ ch_assemble_flash_firmware (ChAssemblePrivate *priv)
 				       priv);
 }
 
-/**
- * ch_assemble_self_test_cb:
- **/
 static void
 ch_assemble_self_test_cb (GObject *source,
 			  GAsyncResult *res,
@@ -311,9 +284,6 @@ ch_assemble_self_test_cb (GObject *source,
 	ch_assemble_flash_firmware (priv);
 }
 
-/**
- * ch_assemble_got_device_bl:
- **/
 static void
 ch_assemble_got_device_bl (ChAssemblePrivate *priv)
 {
@@ -340,9 +310,6 @@ ch_assemble_got_device_bl (ChAssemblePrivate *priv)
 				       priv);
 }
 
-/**
- * ch_assemble_got_device_fw:
- **/
 static void
 ch_assemble_got_device_fw (ChAssemblePrivate *priv)
 {
@@ -367,9 +334,6 @@ ch_assemble_got_device_fw (ChAssemblePrivate *priv)
 				       priv);
 }
 
-/**
- * ch_assemble_removed_device:
- **/
 static void
 ch_assemble_removed_device (ChAssemblePrivate *priv)
 {
@@ -377,9 +341,6 @@ ch_assemble_removed_device (ChAssemblePrivate *priv)
 	ch_assemble_set_color (priv, 0.0f, 0.0f, 0.0f);
 }
 
-/**
- * ch_assemble_startup_cb:
- **/
 static void
 ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 {
@@ -420,9 +381,6 @@ ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 	gtk_widget_show (main_window);
 }
 
-/**
- * ch_assemble_device_added_cb:
- **/
 static void
 ch_assemble_device_added_cb (GUsbContext *ctx,
 			     GUsbDevice *device,
@@ -456,9 +414,6 @@ ch_assemble_device_added_cb (GUsbContext *ctx,
 	}
 }
 
-/**
- * ch_assemble_device_removed_cb:
- **/
 static void
 ch_assemble_device_removed_cb (GUsbContext *ctx,
 			       GUsbDevice *device,
@@ -471,18 +426,12 @@ ch_assemble_device_removed_cb (GUsbContext *ctx,
 	}
 }
 
-/**
- * ch_assemble_ignore_cb:
- **/
 static void
 ch_assemble_ignore_cb (const gchar *log_domain, GLogLevelFlags log_level,
 		       const gchar *message, gpointer user_data)
 {
 }
 
-/**
- * main:
- **/
 int
 main (int argc, char **argv)
 {

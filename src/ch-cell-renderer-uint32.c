@@ -76,10 +76,6 @@ ch_cell_renderer_uint32_set_property (GObject *object, guint param_id,
 	}
 }
 
-/**
- * ch_cell_renderer_finalize:
- * @object: The object to finalize
- **/
 static void
 ch_cell_renderer_finalize (GObject *object)
 {
@@ -105,9 +101,6 @@ ch_cell_renderer_uint32_class_init (ChCellRendererUint32Class *class)
 					 "VALUE", 0, G_MAXUINT32, 0, G_PARAM_READWRITE));
 }
 
-/**
- * ch_cell_renderer_uint32_init:
- **/
 static void
 ch_cell_renderer_uint32_init (ChCellRendererUint32 *cru)
 {
@@ -115,9 +108,6 @@ ch_cell_renderer_uint32_init (ChCellRendererUint32 *cru)
 	cru->markup = NULL;
 }
 
-/**
- * ch_cell_renderer_uint32_new:
- **/
 GtkCellRenderer *
 ch_cell_renderer_uint32_new (void)
 {

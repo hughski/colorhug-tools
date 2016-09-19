@@ -63,9 +63,6 @@ enum {
 	COLUMN_LAST
 };
 
-/**
- * ch_shipping_error_dialog:
- **/
 static void
 ch_shipping_error_dialog (ChFactoryPrivate *priv,
 			  const gchar *title,
@@ -86,9 +83,6 @@ ch_shipping_error_dialog (ChFactoryPrivate *priv,
 	gtk_widget_destroy (dialog);
 }
 
-/**
- * ch_shipping_activate_cb:
- **/
 static void
 ch_shipping_activate_cb (GApplication *application, ChFactoryPrivate *priv)
 {
@@ -97,9 +91,6 @@ ch_shipping_activate_cb (GApplication *application, ChFactoryPrivate *priv)
 	gtk_window_present (window);
 }
 
-/**
- * ch_shipping_close_button_cb:
- **/
 static void
 ch_shipping_close_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -107,9 +98,6 @@ ch_shipping_close_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gtk_widget_destroy (widget);
 }
 
-/**
- * ch_shipping_find_by_id:
- **/
 static gboolean
 ch_shipping_find_by_id (GtkTreeModel *model,
 		        GtkTreeIter *iter_found,
@@ -133,9 +121,6 @@ ch_shipping_find_by_id (GtkTreeModel *model,
 	return ret;
 }
 
-/**
- * ch_shipping_refresh_status:
- **/
 static void
 ch_shipping_refresh_status (ChFactoryPrivate *priv)
 {
@@ -161,9 +146,6 @@ ch_shipping_refresh_status (ChFactoryPrivate *priv)
 	gtk_label_set_text (GTK_LABEL (widget), label);
 }
 
-/**
- * ch_shipping_order_get_device_ids:
- **/
 static gchar *
 ch_shipping_order_get_device_ids (ChFactoryPrivate *priv,
 				  guint32 order_id,
@@ -203,9 +185,6 @@ static void ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model
 static void ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter);
 static void ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter);
 
-/**
- * ch_shipping_refresh_orders:
- **/
 static void
 ch_shipping_refresh_orders (ChFactoryPrivate *priv)
 {
@@ -280,9 +259,6 @@ out:
 		g_ptr_array_unref (array);
 }
 
-/**
- * ch_shipping_refund_button_cb:
- **/
 static void
 ch_shipping_refund_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -351,9 +327,6 @@ out:
 		g_array_unref (array);
 }
 
-/**
- * ch_shipping_strreplace:
- **/
 static gchar *
 ch_shipping_strreplace (const gchar *haystack, const gchar *needle, const gchar *replace)
 {
@@ -371,9 +344,6 @@ out:
 	return new;
 }
 
-/**
- * ch_shipping_print_cn22:
- **/
 static void
 ch_shipping_print_cn22 (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
@@ -427,9 +397,6 @@ out:
 		g_string_free (str, TRUE);
 }
 
-/**
- * ch_shipping_print_invoice:
- **/
 static void
 ch_shipping_print_invoice (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
@@ -537,9 +504,6 @@ out:
 	g_string_free (str, TRUE);
 }
 
-/**
- * ch_shipping_print_invoices_button_cb:
- **/
 static void
 ch_shipping_print_invoices_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -562,9 +526,6 @@ ch_shipping_print_invoices_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 }
 
-/**
- * ch_shipping_print_cn22_button_cb:
- **/
 static void
 ch_shipping_print_cn22_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -587,9 +548,6 @@ ch_shipping_print_cn22_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	}
 }
 
-/**
- * ch_shipping_mark_shipped_button_cb:
- **/
 static void
 ch_shipping_mark_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -615,9 +573,6 @@ ch_shipping_mark_shipped_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	ch_shipping_refresh_orders (priv);
 }
 
-/**
- * ch_shipping_print_manifest:
- **/
 static void
 ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *model, GtkTreeIter *iter, guint cnt)
 {
@@ -678,9 +633,6 @@ ch_shipping_print_manifest (ChFactoryPrivate *priv, GString *str, GtkTreeModel *
 	g_strfreev (address_split);
 }
 
-/**
- * ch_shipping_print_manifest_button_cb:
- **/
 static void
 ch_shipping_print_manifest_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -761,9 +713,6 @@ out:
 
 
 
-/**
- * ch_shipping_print_label:
- **/
 static void
 ch_shipping_print_label (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
@@ -850,9 +799,6 @@ out:
 	g_free (name);
 }
 
-/**
- * ch_shipping_print_labels_button_cb:
- **/
 static void
 ch_shipping_print_labels_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -879,9 +825,6 @@ ch_shipping_print_labels_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	ch_shipping_refresh_status (priv);
 }
 
-/**
- * ch_shipping_order_button_cb:
- **/
 static void
 ch_shipping_order_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -940,9 +883,6 @@ ch_shipping_order_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	g_date_time_unref (date);
 }
 
-/**
- * ch_shipping_order_cancel_button_cb:
- **/
 static void
 ch_shipping_order_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -950,9 +890,6 @@ ch_shipping_order_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gtk_widget_hide (widget);
 }
 
-/**
- * ch_shipping_comment_button_cb:
- **/
 static void
 ch_shipping_comment_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -992,9 +929,6 @@ out:
 	g_free (comment);
 }
 
-/**
- * ch_shipping_comment_cancel_button_cb:
- **/
 static void
 ch_shipping_comment_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -1002,18 +936,12 @@ ch_shipping_comment_cancel_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	gtk_widget_hide (widget);
 }
 
-/**
- * ch_shipping_refresh_cb:
- **/
 static void
 ch_shipping_refresh_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
 	ch_shipping_refresh_orders (priv);
 }
 
-/**
- * ch_shipping_order_get_radio_postage:
- **/
 static ChShippingKind
 ch_shipping_order_get_radio_postage (ChFactoryPrivate *priv)
 {
@@ -1067,9 +995,6 @@ ch_shipping_order_get_radio_postage (ChFactoryPrivate *priv)
 	return postage;
 }
 
-/**
- * ch_shipping_order_add_button_cb:
- **/
 static void
 ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -1309,9 +1234,6 @@ out:
 	gtk_widget_hide (widget);
 }
 
-/**
- * ch_shipping_email_send_email:
- **/
 static void
 ch_shipping_email_send_email (ChFactoryPrivate *priv, GtkTreeModel *model, GtkTreeIter *iter)
 {
@@ -1430,9 +1352,6 @@ out:
 		g_string_free (str, TRUE);
 }
 
-/**
- * ch_shipping_comment_edit_button_cb:
- **/
 static void
 ch_shipping_comment_edit_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -1478,9 +1397,6 @@ out:
 	gtk_widget_hide (widget);
 }
 
-/**
- * ch_shipping_tracking_button_cb:
- **/
 static void
 ch_shipping_tracking_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 {
@@ -1503,9 +1419,6 @@ out:
 	g_free (tracking_number);
 }
 
-/**
- * ch_shipping_row_activated_cb:
- **/
 static void
 ch_shipping_row_activated_cb (GtkTreeView *treeview,
 			      GtkTreePath *path,
@@ -1545,9 +1458,6 @@ out:
 	return;
 }
 
-/**
- * gpk_application_packages_installed_clicked_cb:
- **/
 static void
 gpk_application_packages_installed_clicked_cb (GtkCellRendererToggle *cell, gchar *path_str, ChFactoryPrivate *priv)
 {
@@ -1572,9 +1482,6 @@ gpk_application_packages_installed_clicked_cb (GtkCellRendererToggle *cell, gcha
 	gtk_tree_path_free (path);
 }
 
-/**
- * ch_shipping_treeview_add_columns:
- **/
 static void
 ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 {
@@ -1663,9 +1570,6 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 	gtk_tree_view_append_column (treeview, column);
 }
 
-/**
- * ch_shipping_paypal_entry_changed_cb:
- **/
 static void
 ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, ChFactoryPrivate *priv)
 {
@@ -1775,9 +1679,6 @@ out:
 	g_strfreev (lines);
 }
 
-/**
- * ch_shipping_order_entry_changed_cb:
- **/
 static void
 ch_shipping_order_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, ChFactoryPrivate *priv)
 {
@@ -1850,9 +1751,6 @@ out:
 	gtk_widget_set_sensitive (widget, ret);
 }
 
-/**
- * ch_shipping_radio_shippping_changed_cb:
- **/
 static void
 ch_shipping_radio_shippping_changed_cb (GtkToggleButton *button, ChFactoryPrivate *priv)
 {
@@ -1878,9 +1776,6 @@ ch_shipping_radio_shippping_changed_cb (GtkToggleButton *button, ChFactoryPrivat
 	ch_shipping_order_entry_changed_cb (NULL, NULL, priv);
 }
 
-/**
- * ch_shipping_startup_cb:
- **/
 static void
 ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 {
@@ -2062,18 +1957,12 @@ out:
 	g_free (filename);
 }
 
-/**
- * ch_shipping_ignore_cb:
- **/
 static void
 ch_shipping_ignore_cb (const gchar *log_domain, GLogLevelFlags log_level,
 		      const gchar *message, gpointer user_data)
 {
 }
 
-/**
- * main:
- **/
 int
 main (int argc, char **argv)
 {
