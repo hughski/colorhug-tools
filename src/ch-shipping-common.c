@@ -355,7 +355,7 @@ ch_shipping_device_to_price (ChShippingKind postage)
 	case CH_SHIPPING_KIND_CH2_UK_SIGNED:
 	case CH_SHIPPING_KIND_CH2_EUROPE_SIGNED:
 	case CH_SHIPPING_KIND_CH2_WORLD_SIGNED:
-		return 85;
+		return 95;
 		break;
 	case CH_SHIPPING_KIND_STRAP_UK:
 	case CH_SHIPPING_KIND_STRAP_EUROPE:
