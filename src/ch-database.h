@@ -90,9 +90,6 @@ gboolean	 ch_database_order_set_state	(ChDatabase	*database,
 						 guint32	 order_id,
 						 ChOrderState	 state,
 						 GError		**error);
-gchar		*ch_database_order_get_tracking	(ChDatabase	*database,
-						 guint32	 order_id,
-						 GError		**error);
 gchar		*ch_database_order_get_comment	(ChDatabase	*database,
 						 guint32	 order_id,
 						 GError		**error);
@@ -114,8 +111,6 @@ guint32		 ch_database_add_order		(ChDatabase	*database,
 						 const gchar	*address,
 						 const gchar	*email,
 						 ChShippingKind postage,
-						 GError		**error);
-gchar 		*ch_database_get_next_tracking_number (ChDatabase	*database,
 						 GError		**error);
 
 G_END_DECLS

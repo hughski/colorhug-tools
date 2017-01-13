@@ -1015,13 +1015,6 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	guint i;
 	guint number_of_devices = 0;
 
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_paypal"));
-	name = gtk_entry_get_text (GTK_ENTRY (widget));
-	if (name != NULL && name[0] != '\0') {
-		/* import data */
-		goto skip;
-	}
-
 	/* get name */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_name"));
 	name = gtk_entry_get_text (GTK_ENTRY (widget));
@@ -1073,7 +1066,7 @@ ch_shipping_order_add_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	    postage != CH_SHIPPING_KIND_ALS_WORLD) {
 		number_of_devices = gtk_spin_button_get_value_as_int (GTK_SPIN_BUTTON (widget));
 	}
-skip:
+
 	/* add to database */
 	order_id = ch_database_add_order (priv->database, name, addr->str, email, postage, &error);
 	if (order_id == G_MAXUINT32) {
@@ -1398,28 +1391,6 @@ out:
 }
 
 static void
-ch_shipping_tracking_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
-{
-	gchar *tracking_number = NULL;
-	GError *error = NULL;
-
-	/* get from the database */
-	tracking_number = ch_database_get_next_tracking_number (priv->database,
-								&error);
-	if (tracking_number == NULL) {
-		ch_shipping_error_dialog (priv, "Failed to get next tracking number", error->message);
-		g_error_free (error);
-		goto out;
-	}
-
-	/* get tracking number */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking"));
-	gtk_entry_set_text (GTK_ENTRY (widget), tracking_number);
-out:
-	g_free (tracking_number);
-}
-
-static void
 ch_shipping_row_activated_cb (GtkTreeView *treeview,
 			      GtkTreePath *path,
 			      GtkTreeViewColumn *col,
@@ -1568,115 +1539,6 @@ ch_shipping_treeview_add_columns (ChFactoryPrivate *priv)
 	gtk_tree_view_column_add_attribute (column, renderer, "markup", COLUMN_COMMENT);
 	gtk_tree_view_column_set_title (column, "Comments");
 	gtk_tree_view_append_column (treeview, column);
-}
-
-static void
-ch_shipping_paypal_entry_changed_cb (GtkWidget *widget, GParamSpec *param_spec, ChFactoryPrivate *priv)
-{
-	const gchar *value;
-	gboolean is_address = FALSE;
-	gchar **lines = NULL;
-	guint cnt = 0;
-	guint i;
-
-	/* get import text */
-	value = gtk_entry_get_text (GTK_ENTRY (widget));
-	if (value[0] == '\0')
-		goto out;
-	lines = g_strsplit (value, "\n", -1);
-
-	/* parse block of text */
-	for (i = 0; lines[i] != NULL; i++) {
-		value = lines[i];
-
-		/* get email */
-		if (g_strstr_len (value, -1, "@") != NULL &&
-		    g_strstr_len (value, -1, "info@hughski.com") == NULL) {
-			widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_email"));
-			gtk_entry_set_text (GTK_ENTRY (widget), value);
-			continue;
-		}
-
-		/* get postage */
-		if (g_strstr_len (value, -1, "Amount:")) {
-			if (g_strstr_len (value, -1, "55")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping4"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "56")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping5"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "57")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping6"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "62")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping7"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "63")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping8"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "64")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping9"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "67")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping10"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "68")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping11"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else if (g_strstr_len (value, -1, "69")) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "radiobutton_shipping12"));
-				gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (widget), TRUE);
-			} else {
-				g_warning ("no postage %s", value);
-				g_assert_not_reached ();
-			}
-			continue;
-		}
-
-		/* get address */
-		if (g_strstr_len (value, -1, "end-to address") != NULL ||
-		    g_strstr_len (value, -1, "ostal address") != NULL ||
-		    g_strstr_len (value, -1, "hipping address") != NULL) {
-			is_address = TRUE;
-			continue;
-		}
-		if (is_address) {
-			if (value[0] == '\0') {
-				is_address = FALSE;
-				continue;
-			}
-			if (cnt == 0) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_name"));
-				gtk_entry_set_text (GTK_ENTRY (widget), value);
-			} else if (cnt == 1) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr1"));
-				gtk_entry_set_text (GTK_ENTRY (widget), value);
-			} else if (cnt == 2) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr2"));
-				gtk_entry_set_text (GTK_ENTRY (widget), value);
-			} else if (cnt == 3) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr3"));
-				gtk_entry_set_text (GTK_ENTRY (widget), value);
-			} else if (cnt == 4) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr4"));
-				gtk_entry_set_text (GTK_ENTRY (widget), value);
-			} else if (cnt == 5) {
-				widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_addr5"));
-				gtk_entry_set_text (GTK_ENTRY (widget), value);
-			} else {
-				g_warning ("address[%i] = %s", cnt, value);
-				g_assert_not_reached ();
-			}
-			cnt++;
-			continue;
-		}
-	}
-
-	/* clear this */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_paypal"));
-	gtk_entry_set_text (GTK_ENTRY (widget), "");
-out:
-	g_strfreev (lines);
 }
 
 static void
@@ -1858,9 +1720,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_comment_edit"));
 	g_signal_connect (widget, "clicked",
 			  G_CALLBACK (ch_shipping_comment_edit_button_cb), priv);
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_tracking"));
-	g_signal_connect (widget, "clicked",
-			  G_CALLBACK (ch_shipping_tracking_button_cb), priv);
 
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "button_refresh"));
 	g_signal_connect (widget, "clicked",
@@ -1927,14 +1786,6 @@ ch_shipping_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_tracking"));
 	g_signal_connect (widget, "notify::text",
 			  G_CALLBACK (ch_shipping_order_entry_changed_cb), priv);
-
-	/* parse the paypal email */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "entry_paypal"));
-	g_signal_connect (widget, "notify::text",
-			  G_CALLBACK (ch_shipping_paypal_entry_changed_cb), priv);
-
-	/* disable buttons based on the order state */
-	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder, "treeview_orders"));
 
 	/* make devices toolbar sexy */
 	widget = GTK_WIDGET (gtk_builder_get_object (priv->builder,

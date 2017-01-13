@@ -267,72 +267,6 @@ out:
 	g_free (statement);
 	return state;
 }
-
-static gint
-ch_database_get_next_tracking_number_cb (void *data, gint argc, gchar **argv, gchar **col_name)
-{
-	gchar **next = (gchar **) data;
-	*next = g_strdup (argv[0]);
-	return 0;
-}
-
-gchar *
-ch_database_get_next_tracking_number (ChDatabase *database,
-				      GError **error)
-{
-	ChDatabasePrivate *priv = database->priv;
-	gboolean ret;
-	gchar *error_msg = NULL;
-	gchar *next_tracking_number = NULL;
-	gchar *statement2 = NULL;
-	gchar *statement = NULL;
-	gint rc;
-
-	/* ensure db is loaded */
-	ret = ch_database_load (database, error);
-	if (!ret)
-		goto out;
-
-	/* find */
-	statement = g_strdup ("SELECT tracking_number "
-			      "FROM signedfor ORDER BY id ASC LIMIT 1;");
-	rc = sqlite3_exec (priv->db,
-			   statement,
-			   ch_database_get_next_tracking_number_cb,
-			   &next_tracking_number,
-			   &error_msg);
-	if (rc != SQLITE_OK) {
-		g_set_error (error, 1, 0,
-			     "failed to get entry: %s",
-			     sqlite3_errmsg (priv->db));
-		goto out;
-	}
-	if (next_tracking_number == NULL) {
-		g_set_error_literal (error, 1, 0,
-				     "No more enrolled tracking numbers");
-		goto out;
-	}
-
-	/* remove this */
-	statement2 = sqlite3_mprintf ("DELETE FROM signedfor WHERE tracking_number = '%q';",
-				      next_tracking_number);
-	rc = sqlite3_exec (priv->db, statement2, NULL, NULL, &error_msg);
-	if (rc != SQLITE_OK) {
-		ret = FALSE;
-		g_set_error (error, 1, 0,
-			     "failed to delete %s: %s",
-			     next_tracking_number,
-			     sqlite3_errmsg (priv->db));
-		g_free (next_tracking_number);
-		next_tracking_number = NULL;
-		goto out;
-	}
-out:
-	g_free (statement);
-	sqlite3_free (statement2);
-	return next_tracking_number;
-}
-
 /**
  * ch_database_order_set_tracking:
  * @database: a valid #ChDatabase instance
@@ -736,54 +670,6 @@ ch_database_order_get_comment (ChDatabase *database,
 out:
 	g_free (statement);
 	return comment;
-}
-
-static gint
-ch_database_order_get_tracking_cb (void *data, gint argc, gchar **argv, gchar **col_name)
-{
-	gchar **tracking = (gchar **) data;
-	*tracking = g_strdup (argv[0]);
-	return 0;
-}
-
-gchar *
-ch_database_order_get_tracking (ChDatabase *database,
-				guint32 order_id,
-				GError **error)
-{
-	ChDatabasePrivate *priv = database->priv;
-	gboolean ret;
-	gchar *error_msg = NULL;
-	gchar *statement = NULL;
-	gint rc;
-	gchar *tracking = NULL;
-
-	/* ensure db is loaded */
-	ret = ch_database_load (database, error);
-	if (!ret)
-		goto out;
-
-	/* find */
-	statement = g_strdup_printf ("SELECT tracking_number "
-				     "FROM orders WHERE order_id = '%i';", order_id);
-	rc = sqlite3_exec (priv->db,
-			   statement,
-			   ch_database_order_get_tracking_cb,
-			   &tracking,
-			   &error_msg);
-	if (rc != SQLITE_OK) {
-		g_set_error (error, 1, 0,
-			     "failed to find entry: %s",
-			     sqlite3_errmsg (priv->db));
-		goto out;
-	}
-
-	/* don't return NULL for success */
-	if (tracking == NULL)
-		tracking = g_strdup ("");
-out:
-	g_free (statement);
-	return tracking;
 }
 
 static gint
