@@ -30,7 +30,6 @@
 #include <lcms2.h>
 #include <canberra-gtk.h>
 
-#include "ch-cleanup.h"
 #include "ch-cell-renderer-date.h"
 #include "ch-cell-renderer-postage.h"
 #include "ch-cell-renderer-uint32.h"
@@ -127,8 +126,8 @@ ch_shipping_refresh_status (ChFactoryPrivate *priv)
 	GtkWidget *widget;
 	guint ch1s;
 	guint ch2s;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *label = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *label = NULL;
 
 	/* update status */
 	ch1s = ch_database_device_get_number (priv->database, CH_DEVICE_STATE_CALIBRATED, 1, &error);

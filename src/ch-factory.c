@@ -32,7 +32,6 @@
 #include <colorhug.h>
 #include <canberra-gtk.h>
 
-#include "ch-cleanup.h"
 #include "ch-database.h"
 #include "ch-shipping-common.h"
 
@@ -154,7 +153,7 @@ ch_factory_find_by_id (GtkTreeModel *model,
 
 	ret = gtk_tree_model_get_iter_first (model, &iter);
 	while (ret) {
-		_cleanup_free_ gchar *desc_tmp = NULL;
+		g_autofree gchar *desc_tmp = NULL;
 		gtk_tree_model_get (model, &iter,
 				    COLUMN_ID, &desc_tmp,
 				    -1);
@@ -236,7 +235,7 @@ ch_factory_set_device_error (ChFactoryPrivate *priv,
 	gboolean ret;
 	GtkListStore *list_store;
 	GtkTreeIter iter;
-	_cleanup_free_ gchar *markup = NULL;
+	g_autofree gchar *markup = NULL;
 
 	list_store = GTK_LIST_STORE (gtk_builder_get_object (priv->builder, "liststore_devices"));
 	ret = ch_factory_find_by_id (GTK_TREE_MODEL (list_store),
@@ -262,8 +261,8 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	GtkListStore *list_store;
 	GtkTreeIter iter;
 	guint serial_number;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *description = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *description = NULL;
 
 	/* is a calibration in progress */
 	if (priv->in_calibration) {
@@ -349,7 +348,7 @@ ch_factory_got_device (ChFactoryPrivate *priv, GUsbDevice *device)
 
 	/* check the hardware version */
 	if (priv->hw_version > 2) {
-		_cleanup_free_ gchar *error_tmp = NULL;
+		g_autofree gchar *error_tmp = NULL;
 		error_tmp = g_strdup_printf ("HWver %i", priv->hw_version);
 		ch_factory_set_device_state (priv, device, CH_DEVICE_ICON_ERROR);
 		ch_factory_set_device_error (priv, device, error_tmp);
@@ -392,7 +391,7 @@ ch_factory_get_active_devices (ChFactoryPrivate *priv)
 	model = GTK_TREE_MODEL (gtk_builder_get_object (priv->builder, "liststore_devices"));
 	ret = gtk_tree_model_get_iter_first (model, &iter);
 	while (ret) {
-		_cleanup_object_unref_ GUsbDevice *device = NULL;
+		g_autoptr(GUsbDevice) device = NULL;
 		gtk_tree_model_get (model, &iter,
 				    COLUMN_ENABLED, &enabled,
 				    -1);
@@ -420,7 +419,7 @@ ch_factory_set_serial_cb (GObject *source,
 {
 	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
 	gboolean ret;
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* get result */
 	ret = ch_device_queue_process_finish (priv->device_queue,
@@ -440,8 +439,8 @@ ch_factory_serial_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	guint32 serial_number;
 	guint i;
 	GUsbDevice *device;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *filename = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *filename = NULL;
 
 	main_window = GTK_WINDOW (gtk_builder_get_object (priv->builder, "window_factory"));
 	dialog = gtk_message_dialog_new (main_window,
@@ -460,7 +459,7 @@ ch_factory_serial_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	/* allocate the serial numbers */
 	devices = ch_factory_get_active_devices (priv);
 	for (i = 0; i < devices->len; i++) {
-		_cleanup_free_ gchar *description = NULL;
+		g_autofree gchar *description = NULL;
 		device = g_ptr_array_index (devices, i);
 
 		/* yay, atomic serial number */
@@ -506,8 +505,8 @@ ch_factory_load_samples (ChFactoryPrivate *priv,
 	gsize ti1_size;
 	guint i;
 	guint number_of_sets = 0;
-	_cleanup_free_ gchar *ti1_data = NULL;
-	_cleanup_object_unref_ CdIt8 *ti1 = NULL;
+	g_autofree gchar *ti1_data = NULL;
+	g_autoptr(CdIt8) ti1 = NULL;
 
 	/* already loaded */
 	if (priv->samples_ti1->len > 0)
@@ -561,8 +560,8 @@ ch_factory_measure_done_cb (GObject *source,
 	GPtrArray *results_tmp;
 	guint i;
 	GUsbDevice *device;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_ptrarray_unref_ GPtrArray *devices = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autoptr(GPtrArray) devices = NULL;
 
 	/* get return value */
 	ret = ch_device_queue_process_finish (priv->device_queue,
@@ -710,8 +709,8 @@ ch_factory_print_device_label (ChFactoryPrivate *priv, guint32 device_serial)
 {
 	gboolean ret;
 	GDateTime *datetime;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_string_free_ GString *str = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autoptr(GString) str = NULL;
 
 	datetime = g_date_time_new_now_local ();
 	str = ch_shipping_string_load (CH_DATA "/device-label.tex", &error);
@@ -743,16 +742,16 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 	GPtrArray *results_tmp;
 	guint32 serial_number = 0;
 	guint i;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *filename_ccmx = NULL;
-	_cleanup_free_ gchar *filename_ti3 = NULL;
-	_cleanup_free_ gchar *local_spectral_reference;
-	_cleanup_object_unref_ CdIt8 *it8_device = NULL;
-	_cleanup_object_unref_ CdIt8 *it8_measured = NULL;
-	_cleanup_object_unref_ CdIt8 *it8_reference = NULL;
-	_cleanup_object_unref_ GFile *file_device = NULL;
-	_cleanup_object_unref_ GFile *file_measured = NULL;
-	_cleanup_object_unref_ GFile *file_reference = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *filename_ccmx = NULL;
+	g_autofree gchar *filename_ti3 = NULL;
+	g_autofree gchar *local_spectral_reference;
+	g_autoptr(CdIt8) it8_device = NULL;
+	g_autoptr(CdIt8) it8_measured = NULL;
+	g_autoptr(CdIt8) it8_reference = NULL;
+	g_autoptr(GFile) file_device = NULL;
+	g_autoptr(GFile) file_measured = NULL;
+	g_autoptr(GFile) file_reference = NULL;
 
 	/* get the ti3 file */
 	local_spectral_reference = g_build_filename (priv->local_calibration_uri,
@@ -881,7 +880,7 @@ ch_factory_measure_save_device (ChFactoryPrivate *priv, GUsbDevice *device)
 static void
 ch_factory_measure_save (ChFactoryPrivate *priv)
 {
-	_cleanup_ptrarray_unref_ GPtrArray *devices = NULL;
+	g_autoptr(GPtrArray) devices = NULL;
 	guint i;
 	GUsbDevice *device;
 
@@ -903,9 +902,9 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 	guint16 calibration_map[6];
 	guint i;
 	GUsbDevice *device;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *filename = NULL;
-	_cleanup_ptrarray_unref_ GPtrArray *devices = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *filename = NULL;
+	g_autoptr(GPtrArray) devices = NULL;
 
 	/* ignore devices that are replugged */
 	priv->in_calibration = TRUE;
@@ -989,7 +988,7 @@ ch_factory_calibrate_button_cb (GtkWidget *widget, ChFactoryPrivate *priv)
 		if (rgb_ambient[i].R < ambient_min ||
 		    rgb_ambient[i].G < ambient_min ||
 		    rgb_ambient[i].B < ambient_min) {
-			_cleanup_free_ gchar *error_tmp = NULL;
+			g_autofree gchar *error_tmp = NULL;
 			error_tmp = g_strdup_printf ("ambient too low: %f,%f,%f < %f",
 						     rgb_tmp.R,
 						     rgb_tmp.G,
@@ -1046,7 +1045,7 @@ ch_factory_set_leds_cb (GObject *source,
 {
 	ChFactoryPrivate *priv = (ChFactoryPrivate *) user_data;
 	gboolean ret;
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* get result */
 	ret = ch_device_queue_process_finish (priv->device_queue,
@@ -1065,8 +1064,8 @@ ch_factory_row_activated_cb (GtkTreeView *treeview,
 	GtkTreeModel *model;
 	GtkTreeIter iter;
 	gboolean ret;
-	_cleanup_free_ gchar *id = NULL;
-	_cleanup_object_unref_ GUsbDevice *device = NULL;
+	g_autofree gchar *id = NULL;
+	g_autoptr(GUsbDevice) device = NULL;
 
 	/* get selection */
 	model = gtk_tree_view_get_model (treeview);
@@ -1231,9 +1230,9 @@ ch_factory_startup_cb (GApplication *application, ChFactoryPrivate *priv)
 	GtkStyleContext *context;
 	GtkWidget *main_window;
 	GtkWidget *widget;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *filename = NULL;
-	_cleanup_object_unref_ CdDevice *device = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *filename = NULL;
+	g_autoptr(CdDevice) device = NULL;
 
 	/* get UI */
 	priv->builder = gtk_builder_new ();
@@ -1399,8 +1398,8 @@ main (int argc, char **argv)
 	gboolean verbose = FALSE;
 	GOptionContext *context;
 	int status = 0;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *database_uri = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *database_uri = NULL;
 	const GOptionEntry options[] = {
 		{ "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose,
 			/* TRANSLATORS: command line option */

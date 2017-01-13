@@ -28,8 +28,6 @@
 #include <colord-gtk.h>
 #include <colorhug.h>
 
-#include "ch-cleanup.h"
-
 typedef struct {
 	CdSampleWidget	*sample_widget;
 	ChDeviceQueue	*device_queue;
@@ -81,7 +79,7 @@ static void
 ch_assemble_set_leds_flash_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
 	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* get result */
 	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
@@ -94,7 +92,7 @@ static void
 ch_assemble_set_serial_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
 	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* get result */
 	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
@@ -119,7 +117,7 @@ static void
 ch_assemble_boot_flash_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
 	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* get result */
 	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
@@ -132,7 +130,7 @@ static void
 ch_assemble_firmware_cb (GObject *source, GAsyncResult *res, gpointer user_data)
 {
 	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* get result */
 	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
@@ -188,9 +186,9 @@ static void
 ch_assemble_flash_firmware (ChAssemblePrivate *priv)
 {
 	gsize len;
-	_cleanup_error_free_ GError *error = NULL;
-	_cleanup_free_ gchar *fn = NULL;
-	_cleanup_free_ guint8 *data = NULL;
+	g_autoptr(GError) error = NULL;
+	g_autofree gchar *fn = NULL;
+	g_autofree guint8 *data = NULL;
 
 	/* set to false */
 	ch_device_queue_set_flash_success (priv->device_queue,
@@ -235,7 +233,7 @@ ch_assemble_self_test_cb (GObject *source,
 			  gpointer user_data)
 {
 	ChAssemblePrivate *priv = (ChAssemblePrivate *) user_data;
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* get result */
 	if (!ch_device_queue_process_finish (priv->device_queue, res, &error)) {
@@ -287,7 +285,7 @@ ch_assemble_self_test_cb (GObject *source,
 static void
 ch_assemble_got_device_bl (ChAssemblePrivate *priv)
 {
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* open device */
 	if (!ch_device_open (priv->device, &error)) {
@@ -313,7 +311,7 @@ ch_assemble_got_device_bl (ChAssemblePrivate *priv)
 static void
 ch_assemble_got_device_fw (ChAssemblePrivate *priv)
 {
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 
 	/* open device */
 	if (!ch_device_open (priv->device, &error)) {
@@ -344,7 +342,7 @@ ch_assemble_removed_device (ChAssemblePrivate *priv)
 static void
 ch_assemble_startup_cb (GApplication *application, ChAssemblePrivate *priv)
 {
-	_cleanup_error_free_ GError *error = NULL;
+	g_autoptr(GError) error = NULL;
 	gint retval;
 	GtkWidget *box;
 	GtkWidget *main_window;
